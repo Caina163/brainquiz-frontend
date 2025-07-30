@@ -209,6 +209,20 @@
     .loading.show {
       display: block;
     }
+
+    .debug-info {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #0af;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 0.8rem;
+      z-index: 1000;
+      max-width: 300px;
+      border: 1px solid rgba(0, 170, 255, 0.3);
+    }
   </style>
 </head>
 <body>
@@ -233,8 +247,20 @@
     </form>
   </div>
 
+  <!-- Debug Info -->
+  <div class="debug-info" id="debugInfo">
+    🔧 Status: Carregando...
+  </div>
+
   <script>
-    console.log('🔑 Sistema de Login BrainQuiz v3.1 - CONECTADO AO BACKEND');
+    console.log('🔑 Sistema de Login BrainQuiz v4.0 - CORRIGIDO');
+    
+    const debugInfo = document.getElementById('debugInfo');
+    
+    function updateDebug(message) {
+      debugInfo.innerHTML = `🔧 ${message}`;
+      console.log('🔧 DEBUG:', message);
+    }
     
     // Criar partículas animadas
     function criarParticulas() {
@@ -268,7 +294,30 @@
       senhaInput.type = mostrarSenhaCheckbox.checked ? 'text' : 'password';
     });
 
-    // Sistema de login conectado ao backend
+    // Verificar status do backend
+    async function verificarBackend() {
+      try {
+        updateDebug('Verificando conexão com backend...');
+        
+        const response = await fetch('https://brainquiz-backend.onrender.com/status', {
+          method: 'GET',
+          timeout: 5000
+        });
+        
+        if (response.ok) {
+          updateDebug('Backend conectado ✅');
+          return true;
+        } else {
+          updateDebug(`Backend erro: ${response.status}`);
+          return false;
+        }
+      } catch (error) {
+        updateDebug(`Backend offline: ${error.message}`);
+        return false;
+      }
+    }
+
+    // Sistema de login principal
     form.addEventListener('submit', async e => {
       e.preventDefault();
       erroDiv.innerHTML = '';
@@ -282,9 +331,16 @@
       }
 
       mostrarLoading(true);
+      updateDebug('Tentando fazer login...');
 
       try {
-        console.log('🔍 Enviando login para o servidor...', { usuario });
+        // Primeiro verificar se o backend está online
+        const backendOk = await verificarBackend();
+        if (!backendOk) {
+          throw new Error('Backend não está respondendo');
+        }
+        
+        console.log('🔍 Enviando credenciais para o servidor...', { usuario });
         
         const response = await fetch('https://brainquiz-backend.onrender.com/login', {
           method: 'POST',
@@ -299,7 +355,12 @@
         console.log('📡 Resposta do servidor:', result);
 
         if (result.success && result.usuario) {
-          console.log('✅ Login bem-sucedido! Dados salvos na SESSÃO do servidor');
+          console.log('✅ Login bem-sucedido! Dados do usuário:', result.usuario);
+          updateDebug('Login realizado com sucesso ✅');
+          
+          // Salvar dados no localStorage como backup
+          localStorage.setItem('usuarioLogado', JSON.stringify(result.usuario));
+          localStorage.setItem('sessionToken', result.token || 'session-active');
           
           mostrarSucesso(`✅ Bem-vindo, ${result.usuario.nome}! Redirecionando...`);
           
@@ -310,16 +371,63 @@
           
         } else {
           console.log('❌ Login falhou:', result.message);
+          updateDebug('Login falhou ❌');
           mostrarErro('❌ ' + (result.message || 'Usuário ou senha incorretos'));
         }
 
       } catch (error) {
         console.error('❌ Erro na requisição de login:', error);
-        mostrarErro('🔌 Erro de conexão. Verifique se o servidor está rodando');
+        updateDebug(`Erro: ${error.message}`);
+        
+        // Tentar login offline se o backend estiver fora
+        if (error.message.includes('Backend')) {
+          mostrarErro('🔌 Backend temporariamente indisponível. Tentando modo offline...');
+          tentarLoginOffline(usuario, senha);
+        } else {
+          mostrarErro('🔌 Erro de conexão. Verifique sua internet e tente novamente');
+        }
       } finally {
         mostrarLoading(false);
       }
     });
+
+    // Função de login offline para desenvolvimento/teste
+    function tentarLoginOffline(usuario, senha) {
+      console.log('🔧 Tentando login offline...');
+      
+      // Usuários de teste para desenvolvimento
+      const usuariosOffline = {
+        'admin': { senha: 'admin123', nome: 'Administrador', tipo: 'administrador' },
+        'mod': { senha: 'mod123', nome: 'Moderador', tipo: 'moderador' },
+        'aluno': { senha: 'aluno123', nome: 'Aluno Teste', tipo: 'aluno' }
+      };
+      
+      const userOffline = usuariosOffline[usuario];
+      
+      if (userOffline && userOffline.senha === senha) {
+        const usuarioCompleto = {
+          usuario: usuario,
+          nome: userOffline.nome,
+          tipo: userOffline.tipo,
+          email: `${usuario}@brainquiz.com`,
+          id: Date.now()
+        };
+        
+        localStorage.setItem('usuarioLogado', JSON.stringify(usuarioCompleto));
+        localStorage.setItem('sessionToken', 'offline-session');
+        localStorage.setItem('modoOffline', 'true');
+        
+        mostrarSucesso(`✅ Login offline: ${userOffline.nome}! Redirecionando...`);
+        updateDebug('Login offline realizado ✅');
+        
+        setTimeout(() => {
+          window.location.href = 'dashboard.html';
+        }, 1500);
+      } else {
+        mostrarErro('❌ Credenciais inválidas (offline)');
+        updateDebug('Credenciais offline inválidas ❌');
+      }
+    }
 
     function mostrarLoading(show) {
       submitBtn.disabled = show;
@@ -336,49 +444,56 @@
       erroDiv.innerHTML = `<div class="success-message">${mensagem}</div>`;
     }
 
-    // CORRIGIDO: Verificar se já está logado - SEM redirecionamento automático
+    // Verificar se já está logado (REMOVIDO O REDIRECIONAMENTO AUTOMÁTICO)
     window.addEventListener('load', async () => {
       try {
-        // Verifica no SERVIDOR se há uma sessão ativa APENAS se solicitado
-        // REMOVIDO o redirecionamento automático que causava o loop
-        console.log('🔓 Página de login carregada - verificação manual de sessão');
+        updateDebug('Página carregada - Verificando estado...');
+        
+        // Verificar localStorage primeiro
+        const usuarioLocal = localStorage.getItem('usuarioLogado');
+        const sessionToken = localStorage.getItem('sessionToken');
+        
+        if (usuarioLocal && sessionToken) {
+          updateDebug('Sessão local encontrada');
+          console.log('💾 Sessão local encontrada, verificando no servidor...');
+          
+          // Verificar se a sessão ainda é válida no servidor
+          try {
+            const response = await fetch('https://brainquiz-backend.onrender.com/usuario', {
+              method: 'GET',
+              credentials: 'include'
+            });
+            
+            if (response.ok) {
+              const result = await response.json();
+              if (result.success && result.usuario) {
+                updateDebug('Sessão válida - pode redirecionar');
+                console.log('✅ Sessão válida no servidor');
+                // Usuário já está logado - pode oferecer redirecionamento
+                mostrarSucesso('Você já está logado! Clique aqui para ir ao dashboard ou faça login novamente.');
+                erroDiv.innerHTML += '<br><button onclick="window.location.href=\'dashboard.html\'" style="background: linear-gradient(45deg, #0af, #08c); border: none; padding: 10px 20px; border-radius: 5px; color: #000; font-weight: bold; cursor: pointer; margin-top: 10px;">🎯 Ir para Dashboard</button>';
+              }
+            }
+          } catch (error) {
+            updateDebug('Sessão servidor inválida');
+            console.log('⚠️ Erro ao verificar sessão no servidor:', error);
+          }
+        } else {
+          updateDebug('Nenhuma sessão encontrada');
+          console.log('🔓 Nenhuma sessão local encontrada');
+        }
+        
       } catch (error) {
-        console.log('⚠️ Erro ao verificar sessão:', error);
+        updateDebug(`Erro verificação: ${error.message}`);
+        console.log('⚠️ Erro na verificação inicial:', error);
       }
       
       // Iniciar animação de partículas
       criarParticulas();
+      updateDebug('Sistema pronto para login');
     });
 
-    // Função para verificar sessão manualmente (se necessário)
-    async function verificarSessaoManual() {
-      try {
-        const response = await fetch('https://brainquiz-backend.onrender.com/usuario', {
-          method: 'GET',
-          credentials: 'include'
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.usuario) {
-            console.log('👤 Usuário já logado detectado:', result.usuario.usuario);
-            mostrarSucesso(`Já logado como ${result.usuario.nome}. Redirecionando...`);
-            setTimeout(() => {
-              window.location.href = 'dashboard.html';
-            }, 1500);
-            return true;
-          }
-        }
-        
-        console.log('🔓 Nenhuma sessão ativa encontrada');
-        return false;
-      } catch (error) {
-        console.log('⚠️ Erro ao verificar sessão:', error);
-        return false;
-      }
-    }
-
-    console.log('✅ Sistema de login carregado e conectado ao backend!');
+    console.log('✅ Sistema de login corrigido carregado!');
   </script>
 </body>
 </html>
