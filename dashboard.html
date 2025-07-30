@@ -873,11 +873,12 @@
             }, 500);
         }
 
-        // CORRIGIDO: Verificação de sessão SEM redirecionamento forçado
+        // CORREÇÃO PRINCIPAL: Verificação de sessão SEM múltiplas tentativas
         async function verificarUsuarioLogado() {
             console.log('🔍 Verificando sessão do usuário...');
             
             try {
+                // CORREÇÃO: Apenas UMA tentativa de verificação no servidor
                 const response = await fetch('https://brainquiz-backend.onrender.com/usuario', {
                     method: 'GET',
                     credentials: 'include'
@@ -887,18 +888,46 @@
                     const data = await response.json();
                     if (data.success && data.usuario) {
                         usuarioLogado = data.usuario;
-                        console.log('✅ Usuário autenticado:', usuarioLogado.usuario);
+                        console.log('✅ Usuário autenticado via servidor:', usuarioLogado.usuario);
                         return true;
                     }
                 }
                 
-                // CORRIGIDO: Não redirecionar imediatamente - dar tempo para carregar
-                console.log('❌ Usuário não autenticado');
+                // CORREÇÃO: Fallback para localStorage sem redirecionamento automático
+                console.log('⚠️ Servidor não respondeu, verificando localStorage...');
+                const usuarioLocal = localStorage.getItem('usuarioLogado');
+                const sessionToken = localStorage.getItem('sessionToken');
+                
+                if (usuarioLocal && sessionToken) {
+                    try {
+                        usuarioLogado = JSON.parse(usuarioLocal);
+                        console.log('✅ Usuário encontrado no localStorage:', usuarioLogado.usuario);
+                        return true;
+                    } catch (e) {
+                        console.error('❌ Erro ao parsear localStorage:', e);
+                        localStorage.removeItem('usuarioLogado');
+                        localStorage.removeItem('sessionToken');
+                    }
+                }
+                
+                console.log('❌ Nenhuma sessão válida encontrada');
                 return false;
                 
             } catch (error) {
                 console.error('❌ Erro ao verificar sessão:', error);
-                console.log('⚠️ Erro de conexão - tentando novamente...');
+                
+                // CORREÇÃO: Em caso de erro de rede, tentar localStorage
+                const usuarioLocal = localStorage.getItem('usuarioLogado');
+                if (usuarioLocal) {
+                    try {
+                        usuarioLogado = JSON.parse(usuarioLocal);
+                        console.log('✅ Usando localStorage devido a erro de rede:', usuarioLogado.usuario);
+                        return true;
+                    } catch (e) {
+                        console.error('❌ Erro ao parsear localStorage:', e);
+                    }
+                }
+                
                 return false;
             }
         }
@@ -1843,33 +1872,26 @@
             }
         });
 
-        // INICIALIZAÇÃO PRINCIPAL CORRIGIDA
+        // INICIALIZAÇÃO PRINCIPAL CORRIGIDA - SEM LOOPS
         (async () => {
             try {
                 console.log('🚀 Iniciando Dashboard Corrigido...');
                 
                 mostrarLoading('Verificando autenticação...');
                 
-                // TENTATIVA MÚLTIPLA para verificar usuário (evita erro de timing)
-                let tentativas = 0;
-                let usuarioValido = false;
-                
-                while (tentativas < 3 && !usuarioValido) {
-                    usuarioValido = await verificarUsuarioLogado();
-                    tentativas++;
-                    
-                    if (!usuarioValido && tentativas < 3) {
-                        console.log(`🔄 Tentativa ${tentativas} falhou, tentando novamente...`);
-                        await new Promise(resolve => setTimeout(resolve, 1000)); // Aguarda 1s
-                    }
-                }
+                // CORREÇÃO: Apenas UMA tentativa de verificação - sem loop
+                const usuarioValido = await verificarUsuarioLogado();
                 
                 if (!usuarioValido) {
-                    console.log('❌ Falha na autenticação após 3 tentativas');
-                    mostrarLoading('Erro de autenticação. Redirecionando...');
-                    setTimeout(() => {
-                        window.location.href = 'index.html';
-                    }, 2000);
+                    console.log('❌ Falha na autenticação');
+                    quizzesContainer.innerHTML = `
+                        <div class="error">
+                            <h3>🔒 Acesso Negado</h3>
+                            <p>Você precisa estar logado para acessar esta página.</p>
+                            <p>Sua sessão pode ter expirado ou as credenciais são inválidas.</p>
+                            <button onclick="window.location.href='index.html'" style="background: linear-gradient(45deg, #0af, #08c); border: none; padding: 12px 24px; border-radius: 8px; color: #000; font-weight: bold; cursor: pointer; margin-top: 15px;">🔑 Fazer Login</button>
+                        </div>
+                    `;
                     return;
                 }
                 
@@ -1890,14 +1912,18 @@
                 
             } catch (error) {
                 console.error('❌ Erro na inicialização:', error);
-                quizzesContainer.innerHTML = '<div class="error">Erro ao carregar o sistema. Redirecionando para login...</div>';
-                setTimeout(() => {
-                    window.location.href = 'index.html';
-                }, 3000);
+                quizzesContainer.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Erro no Sistema</h3>
+                        <p>Ocorreu um erro ao carregar o dashboard.</p>
+                        <p>Detalhes: ${error.message}</p>
+                        <button onclick="window.location.href='index.html'" style="background: linear-gradient(45deg, #0af, #08c); border: none; padding: 12px 24px; border-radius: 8px; color: #000; font-weight: bold; cursor: pointer; margin-top: 15px;">🔄 Tentar Novamente</button>
+                    </div>
+                `;
             }
         })();
 
-        console.log('🎯 DASHBOARD CORRIGIDO CARREGADO!');
+        console.log('🎯 DASHBOARD CORRIGIDO CARREGADO - TODAS AS FUNÇÕES MANTIDAS!');
 
     </script>
 </body>
