@@ -289,14 +289,14 @@
         console.log('🔍 Enviando login para o servidor...', { usuario });
         
         // CONECTA DIRETAMENTE AO BACKEND (index.js)
-       const response = await fetch('https://brainquiz-backend.onrender.com/login', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  credentials: 'include',
-  body: JSON.stringify({ usuario, senha })
-});
+        const response = await fetch('https://brainquiz-backend.onrender.com/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ usuario, senha })
+        });
 
         const result = await response.json();
         console.log('📡 Resposta do servidor:', result);
@@ -309,10 +309,10 @@
           
           mostrarSucesso(`✅ Bem-vindo, ${result.usuario.nome}! Redirecionando...`);
           
-          // Redirecionar para dashboard
+          // Redirecionar para dashboard - CORRIGIDO: SEM barra inicial
           setTimeout(() => {
             console.log('🎯 Redirecionando para dashboard...');
-            window.location.href = '/dashboard.html';
+            window.location.href = 'dashboard.html';
           }, 1500);
           
         } else {
@@ -322,7 +322,7 @@
 
       } catch (error) {
         console.error('❌ Erro na requisição de login:', error);
-        mostrarErro('🔌 Erro de conexão. Verifique se o servidor está rodando em localhost:3000');
+        mostrarErro('🔌 Erro de conexão. Verifique se o servidor está rodando');
       } finally {
         mostrarLoading(false);
       }
@@ -347,10 +347,10 @@
     window.addEventListener('load', async () => {
       try {
         // Verifica no SERVIDOR se há uma sessão ativa
-       const response = await fetch('https://brainquiz-backend.onrender.com/usuario', {
-  method: 'GET',
-  credentials: 'include'
-});
+        const response = await fetch('https://brainquiz-backend.onrender.com/usuario', {
+          method: 'GET',
+          credentials: 'include'
+        });
         
         if (response.ok) {
           const result = await response.json();
@@ -358,7 +358,7 @@
             console.log('👤 Usuário já logado detectado:', result.usuario.usuario);
             mostrarSucesso(`Já logado como ${result.usuario.nome}. Redirecionando...`);
             setTimeout(() => {
-              window.location.href = '/dashboard.html';
+              window.location.href = 'dashboard.html';
             }, 1500);
             return;
           }
