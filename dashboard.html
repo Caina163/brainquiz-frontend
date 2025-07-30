@@ -879,7 +879,7 @@
             
             try {
                 // CORREÇÃO: Apenas UMA tentativa de verificação no servidor
-                const response = await fetch('https://brainquiz-backend.onrender.com/usuario', {
+                const response = await fetch('https://brainquiiz.netlify.app/usuario', {
                     method: 'GET',
                     credentials: 'include'
                 });
@@ -936,7 +936,7 @@
             console.log('📡 Carregando dados reais do backend...');
             
             try {
-                const usuariosResponse = await fetch('https://brainquiz-backend.onrender.com/api/usuarios', {
+                const usuariosResponse = await fetch('https://brainquiiz.netlify.app/api/usuarios', {
                     method: 'GET',
                     credentials: 'include'
                 });
@@ -947,7 +947,7 @@
                     console.log('✅ Usuários carregados:', users.length);
                 }
                 
-                const cadastrosResponse = await fetch('https://brainquiz-backend.onrender.com/api/cadastros', {
+                const cadastrosResponse = await fetch('https://brainquiiz.netlify.app/api/cadastros', {
                     method: 'GET',
                     credentials: 'include'
                 });
@@ -958,7 +958,7 @@
                     console.log('✅ Cadastros pendentes:', cadastros.length);
                 }
                 
-                const quizzesResponse = await fetch('https://brainquiz-backend.onrender.com/api/quizzes', {
+                const quizzesResponse = await fetch('https://brainquiiz.netlify.app/api/quizzes', {
                     method: 'GET',
                     credentials: 'include'
                 });
@@ -997,7 +997,7 @@
                     console.log('👋 Fazendo logout...');
                     
                     try {
-                        const response = await fetch('https://brainquiz-backend.onrender.com/logout', {
+                        const response = await fetch('https://brainquiiz.netlify.app/logout', {
                             method: 'POST',
                             credentials: 'include'
                         });
@@ -1201,7 +1201,7 @@
             
             try {
                 if (currentEditingUser.tipo !== tipo) {
-                    const roleResponse = await fetch('https://brainquiz-backend.onrender.com/alterar-role', {
+                    const roleResponse = await fetch('https://brainquiiz.netlify.app/alterar-role', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
@@ -1269,7 +1269,7 @@
             
             if (confirm(`Deseja realmente excluir o usuário ${user.usuario}? Esta ação não pode ser desfeita.`)) {
                 try {
-                    const response = await fetch('https://brainquiz-backend.onrender.com/excluir-usuario', {
+                    const response = await fetch('https://brainquiiz.netlify.app/excluir-usuario', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
@@ -1562,7 +1562,7 @@
             }
             
             try {
-                const response = await fetch('https://brainquiz-backend.onrender.com/api/perfil', {
+                const response = await fetch('https://brainquiiz.netlify.app/api/perfil', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
