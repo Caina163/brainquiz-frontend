@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>🔥 NOVO CÓDIGO - Quiz - Jogue Agora</title>
+  <style>
+    body {
+      background-color: #000;
+      color: #0af;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      padding: 30px;
+      margin: 0;
+    }
+    h1 {
+      text-shadow: 0 0 10px #0af;
+      margin-bottom: 10px;
+    }
+    .quiz-container {
+      background-color: #111;
+      border-radius: 10px;
+      box-shadow: 0 0 20px #0af;
+      padding: 20px 30px;
+      max-width: 700px;
+      width: 100%;
+      position: relative;
+    }
+    .question {
+      font-size: 1.4rem;
+      margin-bottom: 15px;
+    }
+    .question img {
+      max-width: 100%;
+      max-height: 300px;
+      object-fit: contain;
+      margin-top: 10px;
+      border-radius: 6px;
+      box-shadow: 0 0 10px #0af;
+      background: #000;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .answers {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 20px 0;
+    }
+    .answers li {
+      background-color: #222;
+      padding: 12px 15px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      box-shadow: inset 0 0 5px #0af;
+      transition: background-color 0.3s, box-shadow 0.3s;
+      user-select: none;
+    }
+    .answers li:hover {
+      background-color: #0af;
+      color: #000;
+      box-shadow: 0 0 15px #0af;
+    }
+    .answers li.selected {
+      background-color: #08c;
+      color: #fff;
+      box-shadow: 0 0 20px #08c;
+      font-weight: bold;
+    }
+    .answers li.correct {
+      background-color: #90ee90;
+      color: #000;
+      box-shadow: 0 0 15px #0a0;
+      cursor: default;
+    }
+    .answers li.wrong {
+      background-color: #f08080;
+      color: #000;
+      box-shadow: 0 0 15px #a00;
+      cursor: default;
+    }
+    button {
+      background-color: #0af;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 6px;
+      color: #000;
+      font-weight: bold;
+      font-size: 1.1rem;
+      cursor: pointer;
+      box-shadow: 0 0 20px #0af;
+      transition: background-color 0.3s, box-shadow 0.3s;
+    }
+    button:hover {
+      background-color: #08c;
+      box-shadow: 0 0 30px #08c;
+      color: #fff;
+    }
+    .score {
+      font-size: 1.6rem;
+      font-weight: bold;
+      margin-top: 20px;
+      text-align: center;
+    }
+    #countdown {
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #0ff;
+      user-select: none;
+    }
+    #result-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    #result-buttons button {
+      min-width: 140px;
+      padding: 12px 0;
+    }
+    .error-message {
+      color: #ff6b6b;
+      background: rgba(255, 107, 107, 0.1);
+      padding: 20px;
+      border-radius: 10px;
+      margin: 20px 0;
+      border: 2px solid #ff6b6b;
+      text-align: center;
+      font-size: 1.2rem;
+    }
+    .loading-message {
+      text-align: center;
+      font-size: 1.2rem;
+      padding: 20px;
+      color: #0af;
+    }
+    /* 🔥 BOTÃO VOLTAR AO INÍCIO DURANTE O QUIZ - DESIGN HARMÔNICO */
+    .voltar-inicio-btn {
+      position: absolute;
+      top: 15px;
+      left: 20px;
+      background: linear-gradient(135deg, #ff6b6b, #ff5252);
+      color: white;
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      border-radius: 20px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 3px 12px rgba(255, 107, 107, 0.3);
+      transition: all 0.3s ease;
+      z-index: 1000;
+      min-width: auto;
+      opacity: 0.9;
+    }
+    .voltar-inicio-btn:hover {
+      background: linear-gradient(135deg, #ff5252, #e53935);
+      transform: translateY(-1px);
+      box-shadow: 0 5px 18px rgba(255, 107, 107, 0.5);
+      opacity: 1;
+    }
+    .voltar-inicio-btn:active {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🔥 CÓDIGO ATUALIZADO - Quiz - Jogue Agora</h1>
+  <div class="quiz-container" id="quiz-container">
+    <div class="loading-message">🔄 Carregando quiz...</div>
+  </div>
+
+  <script>
+    // 🚨 ALERTA VISUAL NO CONSOLE
+    console.log('%c🔥 CÓDIGO COMPLETAMENTE NOVO CARREGADO! 🔥', 'color: #ff6b6b; font-size: 20px; font-weight: bold;');
+    console.log('%c📁 Arquivo: /views/quiz.html', 'color: #0af; font-size: 14px;');
+    console.log('%c✅ Todas as correções aplicadas!', 'color: #90ee90; font-size: 14px;');
+    
+    const quizContainer = document.getElementById('quiz-container');
+
+    let quizAtual = null;
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let shuffledAlternatives = [];
+    let countdownInterval = null;
+
+    // 🔥 FUNÇÃO PRINCIPAL CORRIGIDA - Compatível com o dashboard
+    function carregarQuizDoDashboard() {
+      try {
+        console.log('🔍 Carregando quiz do dashboard...');
+
+        // 🔥 MÉTODO 1: Tentar pegar do localStorage (enviado pelo dashboard)
+        const quizAtualData = localStorage.getItem('quizAtual');
+        
+        if (quizAtualData) {
+          console.log('✅ Quiz encontrado no localStorage');
+          const quiz = JSON.parse(quizAtualData);
+          
+          // Limpar dados temporários após usar
+          localStorage.removeItem('quizAtual');
+          
+          if (validarQuiz(quiz)) {
+            iniciarQuiz(quiz);
+            return;
+          }
+        }
+
+        // 🔥 MÉTODO 2: Tentar pegar ID da URL (método antigo)
+        const urlParams = new URLSearchParams(window.location.search);
+        const quizId = urlParams.get('id');
+        
+        if (quizId) {
+          console.log('🔍 Tentando carregar quiz por ID da URL:', quizId);
+          const quiz = buscarQuizPorId(quizId);
+          
+          if (quiz && validarQuiz(quiz)) {
+            iniciarQuiz(quiz);
+            return;
+          }
+        }
+
+        // 🔥 MÉTODO 3: Se nada funcionou, mostrar erro
+        mostrarErro(
+          '❌ Nenhum quiz selecionado', 
+          'Volte ao dashboard e clique em um quiz para jogar.'
+        );
+
+      } catch (error) {
+        console.error('❌ Erro ao carregar quiz:', error);
+        mostrarErro('💥 Erro interno', 'Ocorreu um erro ao carregar o quiz. Tente recarregar a página.');
+      }
+    }
+
+    // 🔥 FUNÇÃO NOVA - Buscar quiz por ID no localStorage
+    function buscarQuizPorId(quizId) {
+      try {
+        const quizzes = JSON.parse(localStorage.getItem('quizzes') || '[]');
+        const quiz = quizzes.find(q => q.id == quizId);
+        
+        if (!quiz) {
+          console.log('❌ Quiz não encontrado com ID:', quizId);
+          console.log('📝 Quizzes disponíveis:', quizzes.map(q => ({id: q.id, nome: q.nome})));
+        }
+        
+        return quiz;
+      } catch (error) {
+        console.error('❌ Erro ao buscar quiz por ID:', error);
+        return null;
+      }
+    }
+
+    // 🔥 FUNÇÃO NOVA - Validar estrutura do quiz
+    function validarQuiz(quiz) {
+      if (!quiz) {
+        console.log('❌ Quiz é null/undefined');
+        return false;
+      }
+
+      if (!quiz.nome) {
+        console.log('❌ Quiz sem nome:', quiz);
+        return false;
+      }
+
+      if (!quiz.perguntas || !Array.isArray(quiz.perguntas) || quiz.perguntas.length === 0) {
+        console.log('❌ Quiz sem perguntas válidas:', quiz);
+        mostrarErro('📝 Quiz incompleto', `O quiz "${quiz.nome}" não possui perguntas.`);
+        return false;
+      }
+
+      // Validar cada pergunta
+      const perguntasValidas = quiz.perguntas.filter(p => {
+        if (!p || !p.texto) return false;
+        
+        // 🔥 COMPATIBILIDADE: Aceitar tanto 'opcoes' quanto 'alternativas'
+        const opcoes = p.opcoes || p.alternativas;
+        if (!opcoes || !Array.isArray(opcoes) || opcoes.length < 2) return false;
+        
+        // 🔥 COMPATIBILIDADE: Aceitar tanto 'respostaCorreta' quanto 'resposta_certa'
+        const respostaCorreta = p.respostaCorreta !== undefined ? p.respostaCorreta : p.resposta_certa;
+        if (typeof respostaCorreta !== 'number' || respostaCorreta < 0 || respostaCorreta >= opcoes.length) return false;
+        
+        return true;
+      });
+
+      if (perguntasValidas.length === 0) {
+        mostrarErro('⚠️ Quiz com problemas', `O quiz "${quiz.nome}" tem perguntas mal formatadas.`);
+        return false;
+      }
+
+      // Normalizar estrutura das perguntas
+      quiz.perguntas = perguntasValidas.map(p => ({
+        id: p.id || Date.now() + Math.random(),
+        texto: p.texto,
+        imagem: p.imagem || null,
+        opcoes: p.opcoes || p.alternativas, // Padronizar para 'opcoes'
+        respostaCorreta: p.respostaCorreta !== undefined ? p.respostaCorreta : p.resposta_certa,
+        tempo: p.tempo || 30
+      }));
+
+      return true;
+    }
+
+    // 🔥 FUNÇÃO NOVA - Inicializar o quiz
+    function iniciarQuiz(quiz) {
+      quizAtual = quiz;
+      currentQuestionIndex = 0;
+      score = 0;
+
+      console.log('✅ Quiz carregado com sucesso:', {
+        nome: quizAtual.nome,
+        totalPerguntas: quizAtual.perguntas.length
+      });
+
+      // Atualizar título da página
+      document.title = `Quiz: ${quizAtual.nome}`;
+      document.querySelector('h1').textContent = `Quiz: ${quizAtual.nome}`;
+
+      // Iniciar o jogo
+      mostrarPergunta();
+    }
+
+    // 🔥 FUNÇÃO CORRIGIDA - Mostrar pergunta atual
+    function mostrarPergunta() {
+      clearInterval(countdownInterval);
+      
+      if (!quizAtual || !quizAtual.perguntas) {
+        mostrarErro('❌ Erro no quiz', 'Dados do quiz corrompidos.');
+        return;
+      }
+
+      const pergunta = quizAtual.perguntas[currentQuestionIndex];
+
+      if (!pergunta) {
+        mostrarErro('❌ Pergunta não encontrada', `Erro na pergunta ${currentQuestionIndex + 1}.`);
+        return;
+      }
+
+      // Filtrar alternativas válidas (não vazias)
+      const opcoes = pergunta.opcoes.filter(opcao => opcao && opcao.trim() !== '');
+      
+      if (opcoes.length < 2) {
+        mostrarErro('⚠️ Pergunta incompleta', `A pergunta ${currentQuestionIndex + 1} não tem alternativas suficientes.`);
+        return;
+      }
+
+      // Embaralhar alternativas mantendo referência ao índice original
+      const alternativas = opcoes.map((opcao, i) => ({
+        texto: opcao,
+        indiceOriginal: i
+      }));
+
+      shuffledAlternatives = shuffleArray([...alternativas]);
+
+      // 🔥 HTML DA PERGUNTA COM BOTÃO "VOLTAR AO INÍCIO" HARMÔNICO
+      quizContainer.innerHTML = `
+        <button class="voltar-inicio-btn" onclick="voltarAoInicio()">🏠 Voltar ao Início</button>
+        <div id="countdown"></div>
+        <div class="question">
+          <strong>Pergunta ${currentQuestionIndex + 1} de ${quizAtual.perguntas.length}</strong><br><br>
+          ${pergunta.texto}
+        </div>
+        ${pergunta.imagem ? `<img src="${pergunta.imagem}" alt="Imagem da pergunta" />` : ''}
+        <ul class="answers">
+          ${shuffledAlternatives.map((alt, idx) => `<li data-index="${idx}">${alt.texto}</li>`).join('')}
+        </ul>
+        <button id="next-btn" disabled>Próxima Pergunta</button>
+      `;
+
+      const answerItems = quizContainer.querySelectorAll('.answers li');
+      const nextBtn = document.getElementById('next-btn');
+      const countdownEl = document.getElementById('countdown');
+      let selectedAnswer = null;
+      let answered = false;
+
+      // 🔥 EVENTO CORRIGIDO - Seleção da resposta
+      answerItems.forEach(item => {
+        item.addEventListener('click', () => {
+          if (answered) return; // Evita múltiplos cliques
+
+          answered = true;
+          selectedAnswer = Number(item.getAttribute('data-index'));
+          nextBtn.disabled = false;
+
+          // Verificar resposta correta
+          const respostaCorretaIndex = pergunta.respostaCorreta;
+          const selectedOriginalIndex = shuffledAlternatives[selectedAnswer].indiceOriginal;
+
+          console.log('🎯 Resposta selecionada:', {
+            textoSelecionado: shuffledAlternatives[selectedAnswer].texto,
+            indiceOriginalSelecionado: selectedOriginalIndex,
+            respostaCorretaIndex: respostaCorretaIndex,
+            acertou: selectedOriginalIndex === respostaCorretaIndex
+          });
+
+          // Marcar respostas visualmente
+          answerItems.forEach((li, idx) => {
+            li.style.pointerEvents = 'none'; // Bloquear cliques
+            const originalIdx = shuffledAlternatives[idx].indiceOriginal;
+            
+            // Marcar resposta correta em verde
+            if (originalIdx === respostaCorretaIndex) {
+              li.classList.add('correct');
+            }
+            
+            // Marcar resposta errada selecionada em vermelho
+            if (idx === selectedAnswer && originalIdx !== respostaCorretaIndex) {
+              li.classList.add('wrong');
+            }
+          });
+
+          // Contar pontos
+          if (selectedOriginalIndex === respostaCorretaIndex) {
+            score++;
+          }
+
+          // Contagem regressiva para próxima pergunta
+          let countdown = 3;
+          countdownEl.textContent = `Próxima pergunta em ${countdown}s...`;
+          countdownInterval = setInterval(() => {
+            countdown--;
+            if (countdown > 0) {
+              countdownEl.textContent = `Próxima pergunta em ${countdown}s...`;
+            } else {
+              clearInterval(countdownInterval);
+              proximaPergunta();
+            }
+          }, 1000);
+        });
+      });
+
+      // Botão "Próxima" manual
+      nextBtn.addEventListener('click', () => {
+        if (!answered) return;
+        clearInterval(countdownInterval);
+        proximaPergunta();
+      });
+    }
+
+    // Embaralha array (Fisher-Yates)
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    // 🔥 FUNÇÃO NOVA - Avançar para próxima pergunta ou resultado
+    function proximaPergunta() {
+      currentQuestionIndex++;
+      
+      if (currentQuestionIndex < quizAtual.perguntas.length) {
+        mostrarPergunta();
+      } else {
+        mostrarResultado();
+      }
+    }
+
+    // 🔥 FUNÇÃO CORRIGIDA - Mostrar resultado final
+    function mostrarResultado() {
+      clearInterval(countdownInterval);
+      
+      const totalPerguntas = quizAtual.perguntas.length;
+      const percentual = Math.round((score / totalPerguntas) * 100);
+      
+      let emoji = '😔';
+      let mensagem = 'Que pena!';
+      
+      if (percentual >= 80) {
+        emoji = '🎉';
+        mensagem = 'Excelente!';
+      } else if (percentual >= 60) {
+        emoji = '😊';
+        mensagem = 'Muito bom!';
+      } else if (percentual >= 40) {
+        emoji = '😐';
+        mensagem = 'Pode melhorar!';
+      }
+
+      // 🔥 TELA DE RESULTADO COM TEXTO CORRIGIDO
+      quizContainer.innerHTML = `
+        <div class="score">
+          ${emoji}<br>
+          <strong>${mensagem}</strong><br><br>
+          Você acertou <strong>${score}</strong> de <strong>${totalPerguntas}</strong> perguntas<br>
+          <span style="font-size: 1.2rem; color: #0ff;">(${percentual}% de acertos)</span>
+        </div>
+        <div id="result-buttons">
+          <button id="restart-btn">🔄 Jogar Novamente</button>
+          <button id="back-to-dashboard-btn">🏠 Voltar ao Início</button>
+        </div>
+      `;
+
+      // Eventos dos botões
+      document.getElementById('restart-btn').addEventListener('click', () => {
+        currentQuestionIndex = 0;
+        score = 0;
+        mostrarPergunta();
+      });
+
+      document.getElementById('back-to-dashboard-btn').addEventListener('click', voltarAoInicio);
+    }
+
+    // 🔥 FUNÇÃO NOVA - Mostrar erros de forma amigável
+    function mostrarErro(titulo, descricao) {
+      quizContainer.innerHTML = `
+        <div class="error-message">
+          <h2>${titulo}</h2>
+          <p>${descricao}</p>
+          <div style="margin-top: 20px;">
+            <button onclick="voltarAoInicio()">🏠 Voltar ao Início</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // 🔥 FUNÇÃO CORRIGIDA - REDIRECIONAMENTO PARA DASHBOARD NA RAIZ
+    function voltarAoInicio() {
+      console.log('🏠 Redirecionando para o dashboard...');
+      console.log('📁 Caminho atual: /views/quiz.html');
+      console.log('🎯 Redirecionando para: http://localhost:3000/dashboard.html');
+      
+      // 🚀 CORREÇÃO PRINCIPAL: Redirecionamento absoluto para a raiz
+      window.location.href = 'http://localhost:3000/dashboard.html';
+    }
+
+    // 🔥 INICIALIZAÇÃO
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log('🚀 Iniciando sistema de quiz...');
+      console.log('📁 Executando em: /views/quiz.html');
+      carregarQuizDoDashboard();
+    });
+
+    // 🔥 DEBUG - Função para testar no console
+    window.debugQuiz = function() {
+      console.log('🔍 Debug do Quiz:', {
+        quizAtual,
+        currentQuestionIndex,
+        score,
+        quizAtualNoLocalStorage: localStorage.getItem('quizAtual'),
+        quizzesNoLocalStorage: JSON.parse(localStorage.getItem('quizzes') || '[]'),
+        caminhoAtual: window.location.pathname
+      });
+    };
+
+    console.log('✅ Quiz.html carregado e pronto!');
+    console.log('🔧 Use debugQuiz() no console para debug');
+    console.log('🎯 CORREÇÕES APLICADAS:');
+    console.log('   ✓ Botões mudados para "Voltar ao Início"');
+    console.log('   ✓ Redirecionamento corrigido para http://localhost:3000/dashboard.html');
+    console.log('   ✓ Botão harmônico adicionado durante o quiz');
+  </script>
+
+</body>
+</html>

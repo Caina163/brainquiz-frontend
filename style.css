@@ -1,0 +1,161 @@
+/* Reset básico */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #0af;
+  background-color: #000;
+}
+
+/* Container geral */
+.container {
+  max-width: 400px;
+  margin: 60px auto;
+  padding: 20px;
+  background: #111;
+  border-radius: 10px;
+  box-shadow: 0 0 15px #0af;
+  text-align: center;
+}
+
+/* Títulos */
+h1, h2 {
+  margin-bottom: 20px;
+  text-shadow: 0 0 10px #0af;
+}
+
+/* Formulários */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="email"],
+textarea {
+  padding: 10px;
+  background: #222;
+  border: none;
+  border-radius: 5px;
+  color: #0af;
+  box-shadow: inset 0 0 8px #0af;
+  transition: background-color 0.3s ease;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus,
+textarea:focus {
+  background: #333;
+  outline: none;
+  box-shadow: 0 0 12px #0af;
+}
+
+/* Botões */
+button {
+  padding: 12px;
+  background: #0af;
+  border: none;
+  border-radius: 5px;
+  color: #000;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 0 15px #0af;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background: #08c;
+  color: #fff;
+  box-shadow: 0 0 25px #08c;
+}
+
+/* Links de cadastro/login */
+.cadastro-link {
+  margin-top: 15px;
+  font-size: 0.9rem;
+}
+
+.cadastro-link a {
+  color: #0af;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.cadastro-link a:hover {
+  color: #0ff;
+}
+
+/* Header do painel */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 40px;
+  background-color: #111;
+  box-shadow: 0 0 10px #0af;
+}
+
+header h1 {
+  color: #0af;
+}
+
+header nav a {
+  color: #0af;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+header nav a:hover {
+  color: #0ff;
+}
+
+/* Main painel */
+main {
+  padding: 20px 40px;
+}
+
+/* Lista de quizzes */
+#quizzes-list > div {
+  background: #111;
+  margin-bottom: 10px;
+  padding: 10px 15px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px #0af;
+  cursor: default;
+  user-select: none;
+}
+
+/* Quiz editor */
+#quiz-editor {
+  background: #111;
+  padding: 20px;
+  margin-top: 30px;
+  border-radius: 10px;
+  box-shadow: 0 0 15px #0af;
+}
+
+#quiz-editor form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+#quiz-editor input,
+#quiz-editor textarea {
+  background: #222;
+  color: #0af;
+  border-radius: 6px;
+  padding: 10px;
+  border: none;
+  box-shadow: inset 0 0 8px #0af;
+}
+
+#quiz-editor button {
+  width: 120px;
+  align-self: flex-start;
+}
