@@ -270,7 +270,7 @@
   </div>
 
   <script>
-    console.log('🔑 Sistema de Login BrainQuiz - VERSÃO CORRIGIDA');
+    console.log('🔑 Sistema de Login BrainQuiz v4.0 - CORRIGIDO');
     
     const debugInfo = document.getElementById('debugInfo');
     
@@ -311,45 +311,27 @@
       senhaInput.type = mostrarSenhaCheckbox.checked ? 'text' : 'password';
     });
 
-    // Verificar se já está logado ao carregar a página
-    window.addEventListener('load', async () => {
-      updateDebug('Verificando sessão existente...');
-      
+    // Verificar status do backend
+    async function verificarBackend() {
       try {
-        // Tentar verificar sessão no servidor
-        const response = await fetch('https://brainquiz-backend.onrender.com/usuario', {
+        updateDebug('Verificando conexão com backend...');
+        
+        const response = await fetch('https://brainquiz-backend.onrender.com/status', {
           method: 'GET',
-          credentials: 'include'
+          timeout: 5000
         });
         
         if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.usuario) {
-            updateDebug('Sessão ativa encontrada ✅');
-            mostrarSessaoAtiva(result.usuario);
-            return;
-          }
+          updateDebug('Backend conectado ✅');
+          return true;
+        } else {
+          updateDebug(`Backend erro: ${response.status}`);
+          return false;
         }
-        
-        updateDebug('Nenhuma sessão ativa');
-        
       } catch (error) {
-        updateDebug(`Erro ao verificar sessão: ${error.message}`);
+        updateDebug(`Backend offline: ${error.message}`);
+        return false;
       }
-      
-      // Inicializar interface
-      criarParticulas();
-    });
-
-    function mostrarSessaoAtiva(usuario) {
-      erroDiv.innerHTML = `
-        <div class="success-message">
-          ✅ Sessão ativa encontrada!<br>
-          <strong>Usuário:</strong> ${usuario.nome} (${usuario.usuario})<br>
-          <strong>Tipo:</strong> ${usuario.tipo}<br>
-          <a href="dashboard.html" class="dashboard-link">🎯 Ir para Dashboard</a>
-        </div>
-      `;
     }
 
     // Sistema de login principal
@@ -366,10 +348,16 @@
       }
 
       mostrarLoading(true);
-      updateDebug('Fazendo login...');
+      updateDebug('Tentando fazer login...');
 
       try {
-        console.log('🔍 Enviando credenciais...', { usuario });
+        // Primeiro verificar se o backend está online
+        const backendOk = await verificarBackend();
+        if (!backendOk) {
+          throw new Error('Backend não está respondendo');
+        }
+        
+        console.log('🔍 Enviando credenciais para o servidor...', { usuario });
         
         const response = await fetch('https://brainquiz-backend.onrender.com/login', {
           method: 'POST',
@@ -380,56 +368,51 @@
           body: JSON.stringify({ usuario, senha })
         });
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
         const result = await response.json();
         console.log('📡 Resposta do servidor:', result);
 
         if (result.success && result.usuario) {
-          console.log('✅ Login realizado com sucesso!');
-          updateDebug('Login bem-sucedido ✅');
+          console.log('✅ Login bem-sucedido! Dados do usuário:', result.usuario);
+          updateDebug('Login realizado com sucesso ✅');
           
-          // Salvar no localStorage como backup
+          // Salvar dados no localStorage como backup
           localStorage.setItem('usuarioLogado', JSON.stringify(result.usuario));
-          localStorage.setItem('loginTimestamp', new Date().getTime().toString());
+          localStorage.setItem('sessionToken', result.token || 'session-active');
           
-          mostrarSucesso(`✅ Bem-vindo, ${result.usuario.nome}!`);
+          mostrarSucesso(`✅ Bem-vindo, ${result.usuario.nome}! Redirecionando...`);
           
-          // Redirecionar imediatamente
           setTimeout(() => {
             console.log('🎯 Redirecionando para dashboard...');
             window.location.href = 'dashboard.html';
-          }, 1000);
+          }, 1500);
           
         } else {
-          console.log('❌ Falha no login:', result.message);
+          console.log('❌ Login falhou:', result.message);
           updateDebug('Login falhou ❌');
-          mostrarErro('❌ ' + (result.message || 'Credenciais inválidas'));
+          mostrarErro('❌ ' + (result.message || 'Usuário ou senha incorretos'));
         }
 
       } catch (error) {
-        console.error('❌ Erro na requisição:', error);
+        console.error('❌ Erro na requisição de login:', error);
         updateDebug(`Erro: ${error.message}`);
         
-        // Modo offline para teste
-        if (error.message.includes('fetch') || error.message.includes('Failed')) {
-          mostrarErro('🔌 Erro de conexão. Tentando modo offline...');
-          setTimeout(() => tentarLoginOffline(usuario, senha), 1000);
+        // Tentar login offline se o backend estiver fora
+        if (error.message.includes('Backend')) {
+          mostrarErro('🔌 Backend temporariamente indisponível. Tentando modo offline...');
+          tentarLoginOffline(usuario, senha);
         } else {
-          mostrarErro('❌ Erro no servidor. Tente novamente.');
+          mostrarErro('🔌 Erro de conexão. Verifique sua internet e tente novamente');
         }
       } finally {
         mostrarLoading(false);
       }
     });
 
-    // Login offline para desenvolvimento/testes
+    // Função de login offline para desenvolvimento/teste
     function tentarLoginOffline(usuario, senha) {
       console.log('🔧 Tentando login offline...');
-      updateDebug('Modo offline ativo');
       
+      // Usuários de teste para desenvolvimento
       const usuariosOffline = {
         'admin': { senha: 'admin123', nome: 'Administrador', tipo: 'administrador' },
         'mod': { senha: 'mod123', nome: 'Moderador', tipo: 'moderador' },
@@ -448,17 +431,17 @@
         };
         
         localStorage.setItem('usuarioLogado', JSON.stringify(usuarioCompleto));
+        localStorage.setItem('sessionToken', 'offline-session');
         localStorage.setItem('modoOffline', 'true');
-        localStorage.setItem('loginTimestamp', new Date().getTime().toString());
         
-        mostrarSucesso(`✅ Login offline: ${userOffline.nome}!`);
+        mostrarSucesso(`✅ Login offline: ${userOffline.nome}! Redirecionando...`);
         updateDebug('Login offline realizado ✅');
         
         setTimeout(() => {
           window.location.href = 'dashboard.html';
-        }, 1000);
+        }, 1500);
       } else {
-        mostrarErro('❌ Credenciais inválidas (modo offline)');
+        mostrarErro('❌ Credenciais inválidas (offline)');
         updateDebug('Credenciais offline inválidas ❌');
       }
     }
@@ -470,14 +453,97 @@
     }
 
     function mostrarErro(mensagem) {
-      erroDiv.innerHTML = `<div style="color: #ff4444; background: rgba(255,68,68,0.1); padding: 10px; border-radius: 5px;">${mensagem}</div>`;
+      erroDiv.innerHTML = `<div style="color: #ff4444;">${mensagem}</div>`;
+      erroDiv.style.animation = 'slideIn 0.5s ease';
     }
 
     function mostrarSucesso(mensagem) {
       erroDiv.innerHTML = `<div class="success-message">${mensagem}</div>`;
     }
 
-    console.log('✅ Sistema de login corrigido carregado!');
+    // CORREÇÃO: Verificação de sessão SEM redirecionamento automático
+    window.addEventListener('load', async () => {
+      try {
+        updateDebug('Página carregada - Verificando estado...');
+        
+        // CORREÇÃO: Verificar localStorage primeiro (mais rápido)
+        const usuarioLocal = localStorage.getItem('usuarioLogado');
+        const sessionToken = localStorage.getItem('sessionToken');
+        
+        if (usuarioLocal && sessionToken) {
+          updateDebug('Sessão local encontrada');
+          console.log('💾 Sessão local encontrada, verificando no servidor...');
+          
+          // CORREÇÃO: Verificar se a sessão ainda é válida no servidor (sem forçar redirecionamento)
+          try {
+            const response = await fetch('https://brainquiz-backend.onrender.com/usuario', {
+              method: 'GET',
+              credentials: 'include'
+            });
+            
+            if (response.ok) {
+              const result = await response.json();
+              if (result.success && result.usuario) {
+                updateDebug('Sessão válida - oferecer redirecionamento');
+                console.log('✅ Sessão válida no servidor');
+                // CORREÇÃO: Oferecer opção ao invés de redirecionar automaticamente
+                mostrarSessaoAtiva(result.usuario);
+                return;
+              }
+            }
+          } catch (error) {
+            updateDebug('Erro ao verificar servidor - usando localStorage');
+            console.log('⚠️ Erro ao verificar sessão no servidor:', error);
+            // CORREÇÃO: Se servidor não responder, usar dados locais
+            try {
+              const usuario = JSON.parse(usuarioLocal);
+              mostrarSessaoLocal(usuario);
+              return;
+            } catch (e) {
+              console.log('❌ Erro ao parsear localStorage:', e);
+            }
+          }
+        } else {
+          updateDebug('Nenhuma sessão encontrada');
+          console.log('🔓 Nenhuma sessão local encontrada');
+        }
+        
+      } catch (error) {
+        updateDebug(`Erro verificação: ${error.message}`);
+        console.log('⚠️ Erro na verificação inicial:', error);
+      }
+      
+      // Iniciar animação de partículas
+      criarParticulas();
+      updateDebug('Sistema pronto para login');
+    });
+
+    // NOVA FUNÇÃO: Mostrar sessão ativa do servidor
+    function mostrarSessaoAtiva(usuario) {
+      erroDiv.innerHTML = `
+        <div class="success-message">
+          ✅ Sessão ativa encontrada!<br>
+          <strong>Usuário:</strong> ${usuario.nome} (${usuario.usuario})<br>
+          <strong>Tipo:</strong> ${usuario.tipo}<br>
+          <a href="dashboard.html" class="dashboard-link">🎯 Ir para Dashboard</a>
+        </div>
+      `;
+    }
+
+    // NOVA FUNÇÃO: Mostrar sessão local (quando servidor offline)
+    function mostrarSessaoLocal(usuario) {
+      erroDiv.innerHTML = `
+        <div class="success-message">
+          ⚡ Sessão local encontrada (modo offline)!<br>
+          <strong>Usuário:</strong> ${usuario.nome} (${usuario.usuario})<br>
+          <strong>Tipo:</strong> ${usuario.tipo}<br>
+          <a href="dashboard.html" class="dashboard-link">🎯 Ir para Dashboard</a><br>
+          <small style="color: #666; font-size: 0.8rem;">Servidor offline - usando dados salvos</small>
+        </div>
+      `;
+    }
+
+    console.log('✅ Sistema de login corrigido carregado - TODAS AS FUNCIONALIDADES MANTIDAS!');
   </script>
 </body>
 </html>
