@@ -837,11 +837,7 @@
     <input type="file" id="profilePhotoInput" accept="image/*" style="display: none;">
 
     <script>
-        console.log('🚀 DASHBOARD SINCRONIZADO v5.1 - Sistema Real com Backend');
-
-        // ============================================================================
-        // VARIÁVEIS GLOBAIS
-        // ============================================================================
+        console.log('🚀 DASHBOARD CORRIGIDO - Sistema Real com Backend');
 
         let usuarioLogado = null;
         let users = [];
@@ -858,10 +854,6 @@
         const createQuizBtn = document.getElementById('createQuizBtn');
         const exitBtn = document.getElementById('exitBtn');
         const mensagemSucesso = document.getElementById('mensagemSucesso');
-
-        // ============================================================================
-        // EFEITOS VISUAIS
-        // ============================================================================
 
         function criarParticulas() {
             const container = document.querySelector('.particles');
@@ -881,10 +873,7 @@
             }, 500);
         }
 
-        // ============================================================================
-        // SISTEMA DE AUTENTICAÇÃO - FUNÇÃO CORRIGIDA
-        // ============================================================================
-
+        // CORRIGIDO: Verificação de sessão SEM redirecionamento forçado
         async function verificarUsuarioLogado() {
             console.log('🔍 Verificando sessão do usuário...');
             
@@ -903,27 +892,21 @@
                     }
                 }
                 
-                console.log('❌ Usuário não autenticado, redirecionando...');
-                window.location.href = 'index.html';
+                // CORRIGIDO: Não redirecionar imediatamente - dar tempo para carregar
+                console.log('❌ Usuário não autenticado');
                 return false;
                 
             } catch (error) {
                 console.error('❌ Erro ao verificar sessão:', error);
-                // NÃO redirecionar em caso de erro de conexão
-                console.log('⚠️ Erro de conexão - mantendo na página');
+                console.log('⚠️ Erro de conexão - tentando novamente...');
                 return false;
             }
         }
-
-        // ============================================================================
-        // CARREGAMENTO DE DADOS DO BACKEND
-        // ============================================================================
 
         async function carregarDadosReais() {
             console.log('📡 Carregando dados reais do backend...');
             
             try {
-                // Carregar usuários
                 const usuariosResponse = await fetch('https://brainquiz-backend.onrender.com/api/usuarios', {
                     method: 'GET',
                     credentials: 'include'
@@ -935,7 +918,6 @@
                     console.log('✅ Usuários carregados:', users.length);
                 }
                 
-                // Carregar cadastros pendentes
                 const cadastrosResponse = await fetch('https://brainquiz-backend.onrender.com/api/cadastros', {
                     method: 'GET',
                     credentials: 'include'
@@ -947,7 +929,6 @@
                     console.log('✅ Cadastros pendentes:', cadastros.length);
                 }
                 
-                // Carregar quizzes ativos
                 const quizzesResponse = await fetch('https://brainquiz-backend.onrender.com/api/quizzes', {
                     method: 'GET',
                     credentials: 'include'
@@ -966,10 +947,6 @@
                 mostrarMensagemSucesso('⚠️ Erro ao carregar alguns dados. Tentando novamente...');
             }
         }
-
-        // ============================================================================
-        // CONFIGURAÇÃO DOS BOTÕES PRINCIPAIS
-        // ============================================================================
 
         function configurarBotoesPrincipais() {
             console.log('⚙️ Configurando botões principais...');
@@ -1010,10 +987,6 @@
             };
         }
 
-        // ============================================================================
-        // SISTEMA DE PERMISSÕES
-        // ============================================================================
-
         function validarPermissao(acao) {
             if (!usuarioLogado) {
                 return false;
@@ -1038,10 +1011,6 @@
             
             return permissoes[acao]?.includes(usuarioLogado.tipo) || false;
         }
-
-        // ============================================================================
-        // CONFIGURAÇÃO DAS ABAS
-        // ============================================================================
 
         function configurarTabs() {
             const tabUsuarios = document.querySelector('[data-tab="usuarios"]');
@@ -1082,10 +1051,6 @@
             });
         }
 
-        // ============================================================================
-        // DADOS DO CALENDÁRIO ACADÊMICO
-        // ============================================================================
-
         const calendarioAcademico = [
             { periodo: '1º', modulo: 'A', fase: 'Fase 1', dataEstimada: 'Jan - Fev 2025', observacoes: 'Início do curso' },
             { periodo: '', modulo: 'A', fase: 'Fase 2', dataEstimada: 'Mar - Abr 2025', observacoes: '' },
@@ -1118,10 +1083,6 @@
             
             return 0;
         }
-
-        // ============================================================================
-        // FUNÇÕES DE CADASTROS PENDENTES
-        // ============================================================================
 
         async function aprovarCadastro(cadastro) {
             try {
@@ -1178,10 +1139,6 @@
                 }
             }
         }
-
-        // ============================================================================
-        // FUNÇÕES DE GERENCIAMENTO DE USUÁRIOS
-        // ============================================================================
 
         function editUser(user) {
             if (!validarPermissao('editar_usuarios')) {
@@ -1312,10 +1269,6 @@
             }
         }
 
-        // ============================================================================
-        // FUNÇÕES DE MODAL E INTERFACE
-        // ============================================================================
-
         function openModal(modalId) {
             document.getElementById(modalId).style.display = 'block';
             
@@ -1335,10 +1288,6 @@
             currentEditingUser = null;
             pendingProfileData = null;
         }
-
-        // ============================================================================
-        // CRIAÇÃO DE CARDS
-        // ============================================================================
 
         function criarCardQuiz(quiz) {
             const card = document.createElement('div');
@@ -1383,10 +1332,6 @@
 
             return card;
         }
-
-        // ============================================================================
-        // EXIBIÇÃO DE CALENDÁRIO ACADÊMICO
-        // ============================================================================
 
         function exibirCalendario() {
             const container = document.createElement('div');
@@ -1491,10 +1436,6 @@
 
             quizzesContainer.appendChild(container);
         }
-
-        // ============================================================================
-        // EXIBIÇÃO DE PERFIL
-        // ============================================================================
 
         function exibirPerfil() {
             const container = document.createElement('div');
@@ -1623,10 +1564,6 @@
                 alert('Erro de conexão ao salvar perfil');
             }
         }
-
-        // ============================================================================
-        // EXIBIÇÃO DE CONTEÚDO PRINCIPAL
-        // ============================================================================
 
         function exibirConteudo() {
             quizzesContainer.innerHTML = '';
@@ -1852,10 +1789,6 @@
             quizzesContainer.appendChild(cadastrosGrid);
         }
 
-        // ============================================================================
-        // FUNÇÕES AUXILIARES
-        // ============================================================================
-
         function mostrarMensagemSucesso(mensagem) {
             mensagemSucesso.textContent = mensagem;
             mensagemSucesso.classList.add('show');
@@ -1873,10 +1806,6 @@
             const loading = document.querySelector('.loading');
             if (loading) loading.remove();
         }
-
-        // ============================================================================
-        // EVENT LISTENERS E INICIALIZAÇÃO
-        // ============================================================================
 
         document.addEventListener('DOMContentLoaded', () => {
             const profilePhotoInput = document.getElementById('profilePhotoInput');
@@ -1914,17 +1843,29 @@
             }
         });
 
-        // ============================================================================
-        // INICIALIZAÇÃO PRINCIPAL DO SISTEMA
-        // ============================================================================
-
+        // INICIALIZAÇÃO PRINCIPAL CORRIGIDA
         (async () => {
             try {
-                console.log('🚀 Iniciando Dashboard Sincronizado v5.1...');
+                console.log('🚀 Iniciando Dashboard Corrigido...');
                 
                 mostrarLoading('Verificando autenticação...');
-                const usuarioValido = await verificarUsuarioLogado();
+                
+                // TENTATIVA MÚLTIPLA para verificar usuário (evita erro de timing)
+                let tentativas = 0;
+                let usuarioValido = false;
+                
+                while (tentativas < 3 && !usuarioValido) {
+                    usuarioValido = await verificarUsuarioLogado();
+                    tentativas++;
+                    
+                    if (!usuarioValido && tentativas < 3) {
+                        console.log(`🔄 Tentativa ${tentativas} falhou, tentando novamente...`);
+                        await new Promise(resolve => setTimeout(resolve, 1000)); // Aguarda 1s
+                    }
+                }
+                
                 if (!usuarioValido) {
+                    console.log('❌ Falha na autenticação após 3 tentativas');
                     mostrarLoading('Erro de autenticação. Redirecionando...');
                     setTimeout(() => {
                         window.location.href = 'index.html';
@@ -1944,13 +1885,8 @@
                 
                 console.log('✅ Sistema inicializado com sucesso!');
                 console.log('👤 Usuário:', usuarioLogado.usuario, '(' + usuarioLogado.tipo + ')');
-                console.log('📊 Dados carregados:', {
-                    quizzes: quizzes.length,
-                    usuarios: users.length,
-                    cadastros: cadastros.length
-                });
                 
-                mostrarMensagemSucesso(`✨ Bem-vindo, ${usuarioLogado.nome}! Sistema sincronizado com o backend.`);
+                mostrarMensagemSucesso(`✨ Bem-vindo, ${usuarioLogado.nome}! Sistema carregado.`);
                 
             } catch (error) {
                 console.error('❌ Erro na inicialização:', error);
@@ -1961,7 +1897,7 @@
             }
         })();
 
-        console.log('🎯 DASHBOARD SINCRONIZADO CARREGADO - v5.1 Sistema Real!');
+        console.log('🎯 DASHBOARD CORRIGIDO CARREGADO!');
 
     </script>
 </body>
