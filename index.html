@@ -268,7 +268,7 @@
       senhaInput.type = mostrarSenhaCheckbox.checked ? 'text' : 'password';
     });
 
-    // CORRIGIDO: Sistema de login conectado ao backend (SEM localStorage)
+    // Sistema de login conectado ao backend
     form.addEventListener('submit', async e => {
       e.preventDefault();
       erroDiv.innerHTML = '';
@@ -286,7 +286,6 @@
       try {
         console.log('🔍 Enviando login para o servidor...', { usuario });
         
-        // CONECTA DIRETAMENTE AO BACKEND (index.js)
         const response = await fetch('https://brainquiz-backend.onrender.com/login', {
           method: 'POST',
           headers: {
@@ -302,12 +301,8 @@
         if (result.success && result.usuario) {
           console.log('✅ Login bem-sucedido! Dados salvos na SESSÃO do servidor');
           
-          // REMOVIDO: localStorage - agora os dados ficam na sessão do servidor
-          // localStorage.setItem('usuarioLogado', JSON.stringify(dadosUsuario));
-          
           mostrarSucesso(`✅ Bem-vindo, ${result.usuario.nome}! Redirecionando...`);
           
-          // Redirecionar para dashboard - CORRIGIDO: SEM barra inicial
           setTimeout(() => {
             console.log('🎯 Redirecionando para dashboard...');
             window.location.href = 'dashboard.html';
@@ -341,10 +336,23 @@
       erroDiv.innerHTML = `<div class="success-message">${mensagem}</div>`;
     }
 
-    // CORRIGIDO: Verificar se já está logado (consulta o servidor)
+    // CORRIGIDO: Verificar se já está logado - SEM redirecionamento automático
     window.addEventListener('load', async () => {
       try {
-        // Verifica no SERVIDOR se há uma sessão ativa
+        // Verifica no SERVIDOR se há uma sessão ativa APENAS se solicitado
+        // REMOVIDO o redirecionamento automático que causava o loop
+        console.log('🔓 Página de login carregada - verificação manual de sessão');
+      } catch (error) {
+        console.log('⚠️ Erro ao verificar sessão:', error);
+      }
+      
+      // Iniciar animação de partículas
+      criarParticulas();
+    });
+
+    // Função para verificar sessão manualmente (se necessário)
+    async function verificarSessaoManual() {
+      try {
         const response = await fetch('https://brainquiz-backend.onrender.com/usuario', {
           method: 'GET',
           credentials: 'include'
@@ -358,18 +366,17 @@
             setTimeout(() => {
               window.location.href = 'dashboard.html';
             }, 1500);
-            return;
+            return true;
           }
         }
         
         console.log('🔓 Nenhuma sessão ativa encontrada');
+        return false;
       } catch (error) {
         console.log('⚠️ Erro ao verificar sessão:', error);
+        return false;
       }
-      
-      // Iniciar animação de partículas
-      criarParticulas();
-    });
+    }
 
     console.log('✅ Sistema de login carregado e conectado ao backend!');
   </script>
