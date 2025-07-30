@@ -882,7 +882,7 @@
         }
 
         // ============================================================================
-        // SISTEMA DE AUTENTICAÇÃO
+        // SISTEMA DE AUTENTICAÇÃO - FUNÇÃO CORRIGIDA
         // ============================================================================
 
         async function verificarUsuarioLogado() {
@@ -909,7 +909,8 @@
                 
             } catch (error) {
                 console.error('❌ Erro ao verificar sessão:', error);
-                window.location.href = 'index.html';
+                // NÃO redirecionar em caso de erro de conexão
+                console.log('⚠️ Erro de conexão - mantendo na página');
                 return false;
             }
         }
@@ -1923,7 +1924,13 @@
                 
                 mostrarLoading('Verificando autenticação...');
                 const usuarioValido = await verificarUsuarioLogado();
-                if (!usuarioValido) return;
+                if (!usuarioValido) {
+                    mostrarLoading('Erro de autenticação. Redirecionando...');
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 2000);
+                    return;
+                }
                 
                 mostrarLoading('Carregando dados do sistema...');
                 await carregarDadosReais();
