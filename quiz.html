@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>🔥 NOVO CÓDIGO - Quiz - Jogue Agora</title>
+  <title>🔥 Quiz BrainQuiz - Jogue Agora</title>
   <style>
     body {
       background-color: #000;
@@ -142,7 +142,6 @@
       padding: 20px;
       color: #0af;
     }
-    /* 🔥 BOTÃO VOLTAR AO INÍCIO DURANTE O QUIZ - DESIGN HARMÔNICO */
     .voltar-inicio-btn {
       position: absolute;
       top: 15px;
@@ -174,16 +173,15 @@
 </head>
 <body>
 
-  <h1>🔥 CÓDIGO ATUALIZADO - Quiz - Jogue Agora</h1>
+  <h1>🧠 BrainQuiz - Jogue Agora</h1>
   <div class="quiz-container" id="quiz-container">
     <div class="loading-message">🔄 Carregando quiz...</div>
   </div>
 
   <script>
-    // 🚨 ALERTA VISUAL NO CONSOLE
-    console.log('%c🔥 CÓDIGO COMPLETAMENTE NOVO CARREGADO! 🔥', 'color: #ff6b6b; font-size: 20px; font-weight: bold;');
-    console.log('%c📁 Arquivo: /views/quiz.html', 'color: #0af; font-size: 14px;');
-    console.log('%c✅ Todas as correções aplicadas!', 'color: #90ee90; font-size: 14px;');
+    console.log('%c🔥 QUIZ CORRIGIDO - BACKEND INTEGRADO! 🔥', 'color: #ff6b6b; font-size: 20px; font-weight: bold;');
+    console.log('%c📁 Arquivo: quiz.html', 'color: #0af; font-size: 14px;');
+    console.log('%c✅ URLs corrigidas para produção!', 'color: #90ee90; font-size: 14px;');
     
     const quizContainer = document.getElementById('quiz-container');
 
@@ -193,39 +191,44 @@
     let shuffledAlternatives = [];
     let countdownInterval = null;
 
-    // 🔥 FUNÇÃO PRINCIPAL CORRIGIDA - Compatível com o dashboard
-    function carregarQuizDoDashboard() {
+    // 🔥 FUNÇÃO PRINCIPAL CORRIGIDA - Backend Integrado
+    async function carregarQuizDoDashboard() {
       try {
-        console.log('🔍 Carregando quiz do dashboard...');
+        console.log('🔍 Carregando quiz do backend...');
 
-        // 🔥 MÉTODO 1: Tentar pegar do localStorage (enviado pelo dashboard)
-        const quizAtualData = localStorage.getItem('quizAtual');
-        
-        if (quizAtualData) {
-          console.log('✅ Quiz encontrado no localStorage');
-          const quiz = JSON.parse(quizAtualData);
-          
-          // Limpar dados temporários após usar
-          localStorage.removeItem('quizAtual');
-          
-          if (validarQuiz(quiz)) {
-            iniciarQuiz(quiz);
-            return;
-          }
-        }
-
-        // 🔥 MÉTODO 2: Tentar pegar ID da URL (método antigo)
+        // 🔥 MÉTODO 1: Tentar pegar quiz específico do backend
         const urlParams = new URLSearchParams(window.location.search);
         const quizId = urlParams.get('id');
         
         if (quizId) {
-          console.log('🔍 Tentando carregar quiz por ID da URL:', quizId);
-          const quiz = buscarQuizPorId(quizId);
+          console.log('🔍 Tentando carregar quiz por ID:', quizId);
+          const quiz = await buscarQuizNoBackend(quizId);
           
           if (quiz && validarQuiz(quiz)) {
             iniciarQuiz(quiz);
             return;
           }
+        }
+
+        // 🔥 MÉTODO 2: Tentar carregar de dados temporários (dashboard)
+        try {
+          const response = await fetch('https://brainquiz-backend.onrender.com/api/quiz-temp', {
+            method: 'GET',
+            credentials: 'include'
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.quiz) {
+              console.log('✅ Quiz temporário encontrado no backend');
+              if (validarQuiz(data.quiz)) {
+                iniciarQuiz(data.quiz);
+                return;
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Erro ao buscar quiz temporário:', error);
         }
 
         // 🔥 MÉTODO 3: Se nada funcionou, mostrar erro
@@ -240,20 +243,26 @@
       }
     }
 
-    // 🔥 FUNÇÃO NOVA - Buscar quiz por ID no localStorage
-    function buscarQuizPorId(quizId) {
+    // 🔥 FUNÇÃO NOVA - Buscar quiz no backend
+    async function buscarQuizNoBackend(quizId) {
       try {
-        const quizzes = JSON.parse(localStorage.getItem('quizzes') || '[]');
-        const quiz = quizzes.find(q => q.id == quizId);
+        const response = await fetch(`https://brainquiz-backend.onrender.com/api/quizzes/${quizId}`, {
+          method: 'GET',
+          credentials: 'include'
+        });
         
-        if (!quiz) {
-          console.log('❌ Quiz não encontrado com ID:', quizId);
-          console.log('📝 Quizzes disponíveis:', quizzes.map(q => ({id: q.id, nome: q.nome})));
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.quiz) {
+            console.log('✅ Quiz carregado do backend:', data.quiz);
+            return data.quiz;
+          }
         }
         
-        return quiz;
+        console.log('❌ Quiz não encontrado no backend');
+        return null;
       } catch (error) {
-        console.error('❌ Erro ao buscar quiz por ID:', error);
+        console.error('❌ Erro ao buscar quiz no backend:', error);
         return null;
       }
     }
@@ -265,14 +274,14 @@
         return false;
       }
 
-      if (!quiz.nome) {
+      if (!quiz.nome && !quiz.titulo) {
         console.log('❌ Quiz sem nome:', quiz);
         return false;
       }
 
       if (!quiz.perguntas || !Array.isArray(quiz.perguntas) || quiz.perguntas.length === 0) {
         console.log('❌ Quiz sem perguntas válidas:', quiz);
-        mostrarErro('📝 Quiz incompleto', `O quiz "${quiz.nome}" não possui perguntas.`);
+        mostrarErro('📝 Quiz incompleto', `O quiz "${quiz.nome || quiz.titulo}" não possui perguntas.`);
         return false;
       }
 
@@ -292,7 +301,7 @@
       });
 
       if (perguntasValidas.length === 0) {
-        mostrarErro('⚠️ Quiz com problemas', `O quiz "${quiz.nome}" tem perguntas mal formatadas.`);
+        mostrarErro('⚠️ Quiz com problemas', `O quiz "${quiz.nome || quiz.titulo}" tem perguntas mal formatadas.`);
         return false;
       }
 
@@ -316,13 +325,13 @@
       score = 0;
 
       console.log('✅ Quiz carregado com sucesso:', {
-        nome: quizAtual.nome,
+        nome: quizAtual.nome || quizAtual.titulo,
         totalPerguntas: quizAtual.perguntas.length
       });
 
       // Atualizar título da página
-      document.title = `Quiz: ${quizAtual.nome}`;
-      document.querySelector('h1').textContent = `Quiz: ${quizAtual.nome}`;
+      document.title = `Quiz: ${quizAtual.nome || quizAtual.titulo}`;
+      document.querySelector('h1').textContent = `Quiz: ${quizAtual.nome || quizAtual.titulo}`;
 
       // Iniciar o jogo
       mostrarPergunta();
@@ -360,9 +369,9 @@
 
       shuffledAlternatives = shuffleArray([...alternativas]);
 
-      // 🔥 HTML DA PERGUNTA COM BOTÃO "VOLTAR AO INÍCIO" HARMÔNICO
+      // 🔥 HTML DA PERGUNTA COM BOTÃO "VOLTAR AO DASHBOARD" CORRIGIDO
       quizContainer.innerHTML = `
-        <button class="voltar-inicio-btn" onclick="voltarAoInicio()">🏠 Voltar ao Início</button>
+        <button class="voltar-inicio-btn" onclick="voltarAoDashboard()">🏠 Voltar ao Dashboard</button>
         <div id="countdown"></div>
         <div class="question">
           <strong>Pergunta ${currentQuestionIndex + 1} de ${quizAtual.perguntas.length}</strong><br><br>
@@ -486,7 +495,7 @@
         mensagem = 'Pode melhorar!';
       }
 
-      // 🔥 TELA DE RESULTADO COM TEXTO CORRIGIDO
+      // 🔥 TELA DE RESULTADO COM BOTÕES CORRIGIDOS
       quizContainer.innerHTML = `
         <div class="score">
           ${emoji}<br>
@@ -496,7 +505,7 @@
         </div>
         <div id="result-buttons">
           <button id="restart-btn">🔄 Jogar Novamente</button>
-          <button id="back-to-dashboard-btn">🏠 Voltar ao Início</button>
+          <button id="back-to-dashboard-btn">🏠 Voltar ao Dashboard</button>
         </div>
       `;
 
@@ -507,7 +516,7 @@
         mostrarPergunta();
       });
 
-      document.getElementById('back-to-dashboard-btn').addEventListener('click', voltarAoInicio);
+      document.getElementById('back-to-dashboard-btn').addEventListener('click', voltarAoDashboard);
     }
 
     // 🔥 FUNÇÃO NOVA - Mostrar erros de forma amigável
@@ -517,26 +526,25 @@
           <h2>${titulo}</h2>
           <p>${descricao}</p>
           <div style="margin-top: 20px;">
-            <button onclick="voltarAoInicio()">🏠 Voltar ao Início</button>
+            <button onclick="voltarAoDashboard()">🏠 Voltar ao Dashboard</button>
           </div>
         </div>
       `;
     }
 
-    // 🔥 FUNÇÃO CORRIGIDA - REDIRECIONAMENTO PARA DASHBOARD NA RAIZ
-    function voltarAoInicio() {
+    // 🔥 FUNÇÃO CORRIGIDA - REDIRECIONAMENTO PARA NETLIFY
+    function voltarAoDashboard() {
       console.log('🏠 Redirecionando para o dashboard...');
-      console.log('📁 Caminho atual: /views/quiz.html');
-      console.log('🎯 Redirecionando para: http://localhost:3000/dashboard.html');
+      console.log('🎯 URL de destino: https://brainquiiz.netlify.app/dashboard.html');
       
-      // 🚀 CORREÇÃO PRINCIPAL: Redirecionamento absoluto para a raiz
-      window.location.href = 'http://localhost:3000/dashboard.html';
+      // 🚀 CORREÇÃO PRINCIPAL: URL absoluta para Netlify
+      window.location.href = 'https://brainquiiz.netlify.app/dashboard.html';
     }
 
     // 🔥 INICIALIZAÇÃO
     window.addEventListener('DOMContentLoaded', () => {
       console.log('🚀 Iniciando sistema de quiz...');
-      console.log('📁 Executando em: /views/quiz.html');
+      console.log('📁 Executando em: https://brainquiiz.netlify.app/quiz.html');
       carregarQuizDoDashboard();
     });
 
@@ -546,18 +554,18 @@
         quizAtual,
         currentQuestionIndex,
         score,
-        quizAtualNoLocalStorage: localStorage.getItem('quizAtual'),
-        quizzesNoLocalStorage: JSON.parse(localStorage.getItem('quizzes') || '[]'),
-        caminhoAtual: window.location.pathname
+        caminhoAtual: window.location.pathname,
+        urlCompleta: window.location.href
       });
     };
 
-    console.log('✅ Quiz.html carregado e pronto!');
+    console.log('✅ Quiz.html CORRIGIDO carregado e pronto!');
     console.log('🔧 Use debugQuiz() no console para debug');
     console.log('🎯 CORREÇÕES APLICADAS:');
-    console.log('   ✓ Botões mudados para "Voltar ao Início"');
-    console.log('   ✓ Redirecionamento corrigido para http://localhost:3000/dashboard.html');
-    console.log('   ✓ Botão harmônico adicionado durante o quiz');
+    console.log('   ✓ URLs corrigidas para Netlify/Render');
+    console.log('   ✓ Backend integrado');
+    console.log('   ✓ Redirecionamento absoluto');
+    console.log('   ✓ Todas as funcionalidades mantidas');
   </script>
 
 </body>
