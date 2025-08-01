@@ -1060,32 +1060,125 @@ async function verificarUsuarioLogado() {
   console.log('🔍 Verificando sessão do usuário...');
   
   try {
-    // Verificar sessão no backend
+    // ✅ ADICIONAR: Headers explícitos para cookies
     const response = await fetch('https://brainquiz-backend.onrender.com/usuario', {
       method: 'GET',
-      credentials: 'include'
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
     });
+    
+    console.log('📡 Status da resposta:', response.status);
+    console.log('📡 Headers da resposta:', [...response.headers.entries()]);
     
     if (response.ok) {
       const data = await response.json();
+      console.log('📋 Dados recebidos:', data);
+      
       if (data.success && data.usuario) {
         usuarioLogado = data.usuario;
         console.log('✅ Usuário autenticado:', usuarioLogado.usuario);
         return true;
+      } else {
+        console.log('❌ Resposta sem usuário:', data);
       }
+    } else {
+      console.log('❌ Resposta não OK:', response.status, response.statusText);
+      const errorData = await response.json().catch(() => ({}));
+      console.log('📋 Dados do erro:', errorData);
     }
     
-    // Se chegou aqui, não está autenticado
-    console.log('❌ Usuário não autenticado, redirecionando...');
+  // ✅ CORREÇÃO: Não redirecionar imediatamente, tentar debug primeiro
+    console.log('⚠️ Tentando debug da sessão...');
+    await debugSession();
+    
+    console.log('❌ Usuário não autenticado após debug, redirecionando...');
     window.location.href = 'https://brainquiiz.netlify.app/';
     return false;
     
   } catch (error) {
     console.error('❌ Erro ao verificar sessão:', error);
-    window.location.href = '/';
+    
+    // ✅ CORREÇÃO: Tentar debug antes de redirecionar
+    console.log('⚠️ Erro na verificação, tentando debug...');
+    await debugSession();
+    
+    window.location.href = 'https://brainquiiz.netlify.app/';
     return false;
   }
 }
+
+// 🔧 ADICIONAR: Função de debug da sessão
+async function debugSession() {
+  try {
+    console.log('🔧 Executando debug da sessão...');
+    
+    const debugResponse = await fetch('https://brainquiz-backend.onrender.com/debug/session', {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (debugResponse.ok) {
+      const debugData = await debugResponse.json();
+      console.log('🔧 DEBUG SESSION:', debugData);
+      
+      // Verificar se há problemas com cookies
+      if (!debugData.cookies) {
+        console.log('⚠️ PROBLEMA: Nenhum cookie sendo enviado para o backend');
+        console.log('🍪 Cookies do navegador:', document.cookie);
+      }
+      
+      if (!debugData.sessionId) {
+        console.log('⚠️ PROBLEMA: Nenhum Session ID encontrado');
+      }
+      
+      return debugData;
+    }
+  } catch (error) {
+    console.error('❌ Erro no debug da sessão:', error);
+  }
+  
+  return null;
+}
+
+
+// 🔧 CORREÇÃO: Sistema de login com mais logs
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  erroDiv.innerHTML = '';
+  
+  const usuario = usuarioInput.value.trim();
+  const senha = senhaInput.value.trim();
+
+  if (!usuario || !senha) {
+    mostrarErro('⚠️ Preencha usuário e senha');
+    return;
+  }
+
+  // ✅ VALIDAÇÃO CORRIGIDA - Só admin/1574569810
+  if (usuario !== 'admin' || senha !== '1574569810') {
+    mostrarErro('❌ Usuário ou senha incorretos');
+    return;
+  }
+
+  mostrarLoading(true);
+  updateDebug('Tentando fazer login...');
+
+  try {
+    // Primeiro verificar se o backend está online
+    const backendOk = await verificarBackend();
+    if (!backendOk) {
+      throw new Error('Backend não está respondendo');
+    }
+    
+    console.log('🔍 Enviando credenciais para o servidor...', { usuario });
+
 
 // ============================================================================
 // CARREGAMENTO DE DADOS REAIS DO BACKEND - CORRIGIDO
@@ -1243,14 +1336,14 @@ function validarPermissao(acao) {
     'excluir_quiz': ['administrador'],
     'gerenciar_usuarios': ['administrador', 'moderador'],
     'editar_usuarios': ['administrador', 'moderador'],
-    'alterar_senhas': ['administrador', 'moderador'],
+    'alterar_senhas': ['administrador'],
     'promover_rebaixar': ['administrador'],
     'excluir_usuarios': ['administrador'],
     'ver_excluidos': ['administrador'],
     'ver_arquivados': ['administrador'],
     'upload_pdf': ['administrador', 'moderador'],
     'gerenciar_pdfs': ['administrador'],
-    'download_pdf_bloqueado': ['administrador', 'moderador'],
+    'download_pdf_bloqueado': ['administrador'],
   };
   
   return permissoes[acao]?.includes(usuarioLogado.tipo) || false;
@@ -2522,38 +2615,27 @@ async function confirmProfileSave() {
   }
   
   try {
-   const response = await fetch('https://brainquiz-backend.onrender.com/api/perfil', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+    const response = await fetch('https://brainquiz-backend.onrender.com/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
       credentials: 'include',
-      body: JSON.stringify({
-        ...pendingProfileData,
-        senhaAtual: currentPassword
-      })
+      body: JSON.stringify({ usuario, senha })
     });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      // Atualizar dados localmente
-      usuarioLogado = {
-        ...usuarioLogado,
-        ...pendingProfileData
-      };
-      
-      closeModal('profilePasswordModal');
-      exibirConteudo();
-      mostrarMensagemSucesso('Perfil atualizado com sucesso!');
-      
-      delete window.tempProfilePhoto;
-    } else {
-      alert('Erro ao salvar perfil: ' + data.message);
-    }
-  } catch (error) {
-    console.error('Erro ao salvar perfil:', error);
-    alert('Erro de conexão ao salvar perfil');
-  }
-}
+
+    console.log('📡 Status da resposta do login:', response.status);
+    console.log('📡 Headers da resposta do login:', [...response.headers.entries()]);
+
+    const result = await response.json();
+    console.log('📡 Resposta do servidor:', result);
+
+    if (result.success && result.usuario) {
+      console.log('✅ Login bem-sucedido! Dados do usuário:', result.usuario);
+      console.log('🔧 Debug do login:', result.debug);
+      updateDebug('Login realizado com sucesso ✅');
+
 
 // ============================================================================
 // EXIBIÇÃO DE CONTEÚDO PRINCIPAL
@@ -2993,16 +3075,93 @@ document.addEventListener('click', (e) => {
       pdfs: pdfs.length
     });
     
-    mostrarMensagemSucesso(`✨ Bem-vindo, ${usuarioLogado.nome}! Sistema sincronizado com o backend.`);
+     mostrarSucesso(`✅ Bem-vindo, ${result.usuario.nome}! Redirecionando...`);
+      
+      setTimeout(async () => {
+        console.log('🔧 Verificando sessão antes de redirecionar...');
+        
+        // Verificar se a sessão foi realmente criada
+        const sessionCheck = await fetch('https://brainquiz-backend.onrender.com/usuario', {
+          method: 'GET',
+          credentials: 'include'
+        });
+        
+        if (sessionCheck.ok) {
+          const sessionData = await sessionCheck.json();
+          if (sessionData.success) {
+            console.log('✅ Sessão confirmada, redirecionando...');
+            window.location.href = 'dashboard.html';
+          } else {
+            console.log('❌ Sessão não confirmada:', sessionData);
+            mostrarErro('❌ Erro na criação da sessão. Tente novamente.');
+          }
+        } else {
+          console.log('❌ Falha na verificação da sessão');
+          mostrarErro('❌ Erro na verificação da sessão. Tente novamente.');
+        }
+      }, 2000); // Aguardar 2 segundos
+      
+    } else {
+      console.log('❌ Login falhou:', result.message);
+      updateDebug('Login falhou ❌');
+      mostrarErro('❌ ' + (result.message || 'Usuário ou senha incorretos'));
+    }
+
+  } catch (error) {
+    console.error('❌ Erro na requisição de login:', error);
+    updateDebug(`Erro: ${error.message}`);
+
+ // Tentar login offline se o backend estiver fora
+    if (error.message.includes('Backend')) {
+      mostrarErro('🔌 Backend temporariamente indisponível. Tentando modo offline...');
+      tentarLoginOffline(usuario, senha);
+    } else {
+      mostrarErro('🔌 Erro de conexão. Verifique sua internet e tente novamente');
+    }
+  } finally {
+    mostrarLoading(false);
+  }
+});
+
+ // Iniciar animação de partículas
+  criarParticulas();
+  updateDebug('Sistema pronto para login');
+});
+
+// 🔧 ADICIONAR: Interceptar todas as requisições para log
+const originalFetch = window.fetch;
+window.fetch = function(...args) {
+  console.log('📡 FETCH:', args[0], args[1]?.method || 'GET');
+  if (args[1]?.credentials) {
+    console.log('🍪 Credentials:', args[1].credentials);
+  }
+  return originalFetch.apply(this, args);
+};
+
+// 🔧 ADICIONAR: Verificação de cookies ao carregar a página
+window.addEventListener('load', async () => {
+  try {
+    updateDebug('Página carregada - Verificando cookies...');
+    console.log('🍪 Cookies atuais:', document.cookie);
+
+ // Verificar se há cookies de sessão
+    if (document.cookie.includes('brainquiz.session')) {
+      console.log('✅ Cookie de sessão encontrado');
+      updateDebug('Cookie de sessão encontrado');
+    } else {
+      console.log('⚠️ Nenhum cookie de sessão encontrado');
+      updateDebug('Nenhum cookie de sessão');
+    }
+    
+    console.log('💻 Sistema de login carregado');
+    console.log('🔑 Credenciais: admin / 1574569810');
     
   } catch (error) {
-    console.error('❌ Erro na inicialização:', error);
-    quizzesContainer.innerHTML = '<div class="error">Erro ao carregar o sistema. Redirecionando para login...</div>';
-    setTimeout(() => {
-     window.location.href = 'https://brainquiiz.netlify.app/';
-    }, 3000);
+    updateDebug(`Erro verificação: ${error.message}`);
+    console.log('⚠️ Erro na verificação inicial:', error);
   }
-})();
+
+
 
 console.log('🎯 DASHBOARD SINCRONIZADO CARREGADO - v5.1 Sistema Real!');
 
