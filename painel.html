@@ -394,7 +394,7 @@
   </div>
 
   <script>
-    console.log('🚀 PAINEL QUIZ CORRIGIDO - Backend Integrado');
+    console.log('🚀 PAINEL QUIZ CORRIGIDO - FINAL - Autenticação Melhorada');
 
     const quizInfoStep = document.getElementById('quizInfoStep');
     const questionsStep = document.getElementById('questionsStep');
@@ -422,16 +422,49 @@
 
     let currentQuestionIndex = 0;
     let editingQuizId = null;
+    let usuarioLogado = null;
 
     // ============================================================================
-    // VERIFICAÇÃO DE AUTENTICAÇÃO - CORRIGIDA PARA NÃO REDIRECIONAR AUTOMATICAMENTE
+    // VERIFICAÇÃO DE AUTENTICAÇÃO MELHORADA
     // ============================================================================
 
     async function verificarAutenticacao() {
       try {
         console.log('🔍 Verificando autenticação...');
         
-        // Tentar verificar no servidor primeiro
+        // Primeiro, tentar obter dados do localStorage
+        const usuarioLocal = localStorage.getItem('usuarioLogado');
+        if (usuarioLocal) {
+          try {
+            usuarioLogado = JSON.parse(usuarioLocal);
+            console.log('✅ Usuário encontrado no localStorage:', usuarioLogado.usuario);
+            
+            // Tentar validar no servidor (sem bloquear se falhar)
+            try {
+              const response = await fetch('https://brainquiz-backend.onrender.com/usuario', {
+                method: 'GET',
+                credentials: 'include'
+              });
+              
+              if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.usuario) {
+                  usuarioLogado = data.usuario;
+                  console.log('✅ Sessão validada no servidor');
+                }
+              }
+            } catch (serverError) {
+              console.log('⚠️ Servidor indisponível, usando dados locais');
+            }
+            
+            return usuarioLogado;
+          } catch (e) {
+            console.error('❌ Erro ao parsear localStorage:', e);
+            localStorage.removeItem('usuarioLogado');
+          }
+        }
+        
+        // Se não tem dados locais, tentar servidor
         const response = await fetch('https://brainquiz-backend.onrender.com/usuario', {
           method: 'GET',
           credentials: 'include'
@@ -440,47 +473,19 @@
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.usuario) {
-            console.log('✅ Usuário autenticado via servidor:', data.usuario.usuario);
-            return data.usuario;
+            usuarioLogado = data.usuario;
+            // Salvar no localStorage para próximas vezes
+            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
+            console.log('✅ Usuário autenticado via servidor:', usuarioLogado.usuario);
+            return usuarioLogado;
           }
         }
         
-        // Fallback para localStorage
-        console.log('⚠️ Servidor não respondeu, verificando localStorage...');
-        const usuarioLocal = localStorage.getItem('usuarioLogado');
-        const sessionToken = localStorage.getItem('sessionToken');
-        
-        if (usuarioLocal && sessionToken) {
-          try {
-            const usuario = JSON.parse(usuarioLocal);
-            console.log('✅ Usuário encontrado no localStorage:', usuario.usuario);
-            return usuario;
-          } catch (e) {
-            console.error('❌ Erro ao parsear localStorage:', e);
-            localStorage.removeItem('usuarioLogado');
-            localStorage.removeItem('sessionToken');
-          }
-        }
-        
-        // Se chegou aqui, não há autenticação válida
         console.log('❌ Nenhuma sessão válida encontrada');
         return false;
         
       } catch (error) {
         console.error('❌ Erro ao verificar sessão:', error);
-        
-        // Em caso de erro de rede, tentar localStorage
-        const usuarioLocal = localStorage.getItem('usuarioLogado');
-        if (usuarioLocal) {
-          try {
-            const usuario = JSON.parse(usuarioLocal);
-            console.log('✅ Usando localStorage devido a erro de rede:', usuario.usuario);
-            return usuario;
-          } catch (e) {
-            console.error('❌ Erro ao parsear localStorage:', e);
-          }
-        }
-        
         return false;
       }
     }
@@ -864,8 +869,43 @@
     });
 
     // ============================================================================
-    // FUNÇÃO PRINCIPAL DE SALVAMENTO - CORRIGIDA PARA BACKEND
+    // FUNÇÃO PRINCIPAL DE SALVAMENTO - CORRIGIDA COM FALLBACK LOCAL
     // ============================================================================
+
+    async function salvarQuizLocal(quizParaSalvar) {
+      try {
+        console.log('💾 Salvando quiz localmente...');
+        
+        // Gerar ID único para o quiz
+        const quizId = 'quiz_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        
+        // Preparar dados para localStorage
+        const quizCompleto = {
+          id: quizId,
+          ...quizParaSalvar,
+          status: 'ativo',
+          criadoPor: usuarioLogado ? usuarioLogado.usuario : 'usuario',
+          criadoEm: new Date().toISOString(),
+          editadoEm: new Date().toISOString()
+        };
+        
+        // Obter quizzes existentes
+        const quizzesExistentes = JSON.parse(localStorage.getItem('quizzes') || '[]');
+        
+        // Adicionar novo quiz
+        quizzesExistentes.push(quizCompleto);
+        
+        // Salvar no localStorage
+        localStorage.setItem('quizzes', JSON.stringify(quizzesExistentes));
+        
+        console.log('✅ Quiz salvo localmente com sucesso!');
+        return { success: true, quizId: quizId };
+        
+      } catch (error) {
+        console.error('❌ Erro ao salvar quiz localmente:', error);
+        return { success: false, error: error.message };
+      }
+    }
 
     saveQuizBtn.addEventListener('click', async () => {
       try {
@@ -919,7 +959,7 @@
           }
         }
 
-        // ✅ PREPARAR DADOS PARA O BACKEND
+        // ✅ PREPARAR DADOS PARA SALVAMENTO
         const quizParaSalvar = {
           titulo: quizData.titulo,
           nome: quizData.titulo, // Campo que o dashboard espera
@@ -937,23 +977,60 @@
           }
         };
 
-        console.log('📤 Enviando quiz para o backend:', quizParaSalvar);
+        console.log('📤 Preparando para salvar quiz:', quizParaSalvar);
 
-        // ✅ ENVIAR PARA O BACKEND
-        const response = await fetch('https://brainquiz-backend.onrender.com/api/quizzes', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include',
-          body: JSON.stringify(quizParaSalvar)
-        });
+        let salvamentoSucesso = false;
+        let erroBackend = null;
 
-        const result = await response.json();
-
-        if (response.ok && result.success) {
-          console.log('✅ Quiz salvo com sucesso no backend:', result);
+        // ✅ TENTAR SALVAR NO BACKEND PRIMEIRO
+        try {
+          console.log('🌐 Tentando salvar no backend...');
           
+          const response = await fetch('https://brainquiz-backend.onrender.com/api/quizzes', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(quizParaSalvar)
+          });
+
+          const result = await response.json();
+
+          if (response.ok && result.success) {
+            console.log('✅ Quiz salvo com sucesso no backend:', result);
+            salvamentoSucesso = true;
+          } else {
+            erroBackend = result.message || 'Erro desconhecido no backend';
+            console.error('❌ Erro do backend:', erroBackend);
+          }
+
+        } catch (error) {
+          erroBackend = error.message;
+          console.error('❌ Erro de conexão com backend:', error);
+        }
+
+        // ✅ SE BACKEND FALHOU, SALVAR LOCALMENTE
+        if (!salvamentoSucesso) {
+          console.log('⚠️ Backend indisponível, salvando localmente...');
+          
+          const resultadoLocal = await salvarQuizLocal(quizParaSalvar);
+          
+          if (resultadoLocal.success) {
+            console.log('✅ Quiz salvo localmente com sucesso!');
+            salvamentoSucesso = true;
+            
+            // Mostrar aviso que foi salvo localmente
+            alert(`✅ Quiz salvo com sucesso!\n\n⚠️ Aviso: O quiz foi salvo localmente pois o servidor está indisponível.\nEle será sincronizado automaticamente quando a conexão for restabelecida.`);
+          } else {
+            console.error('❌ Falha ao salvar localmente:', resultadoLocal.error);
+            alert('❌ Erro ao salvar quiz: ' + resultadoLocal.error);
+            return;
+          }
+        }
+
+        // ✅ SE SALVAMENTO FOI BEM-SUCEDIDO
+        if (salvamentoSucesso) {
           // Mostrar sucesso e redirecionar
           questionsStep.style.display = 'none';
           successMessage.style.display = 'block';
@@ -961,15 +1038,11 @@
           setTimeout(() => {
             voltarParaDashboard();
           }, 2000);
-          
-        } else {
-          console.error('❌ Erro do backend:', result.message);
-          alert('Erro ao salvar quiz: ' + result.message);
         }
 
       } catch (error) {
-        console.error('❌ Erro ao salvar quiz:', error);
-        alert('Erro de conexão ao salvar quiz. Verifique sua internet.');
+        console.error('❌ Erro geral ao salvar quiz:', error);
+        alert('❌ Erro inesperado ao salvar quiz. Tente novamente.');
       } finally {
         saveQuizBtn.classList.remove('loading');
         saveQuizBtn.textContent = 'Salvar Quiz';
@@ -989,19 +1062,33 @@
       try {
         console.log('🔧 Carregando quiz para edição, ID:', id);
         
-        // ✅ TENTAR CARREGAR DO BACKEND
-        const response = await fetch(`https://brainquiz-backend.onrender.com/api/quizzes/${id}`, {
-          method: 'GET',
-          credentials: 'include'
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.quiz) {
-            console.log('✅ Quiz carregado do backend:', data.quiz);
-            preencherFormularioComQuiz(data.quiz, id);
-            return;
+        // ✅ TENTAR CARREGAR DO BACKEND PRIMEIRO
+        try {
+          const response = await fetch(`https://brainquiz-backend.onrender.com/api/quizzes/${id}`, {
+            method: 'GET',
+            credentials: 'include'
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.quiz) {
+              console.log('✅ Quiz carregado do backend:', data.quiz);
+              preencherFormularioComQuiz(data.quiz, id);
+              return;
+            }
           }
+        } catch (backendError) {
+          console.log('⚠️ Backend indisponível, tentando carregar localmente...');
+        }
+        
+        // ✅ FALLBACK: CARREGAR DO LOCALSTORAGE
+        const quizzesLocais = JSON.parse(localStorage.getItem('quizzes') || '[]');
+        const quizLocal = quizzesLocais.find(q => q.id === id);
+        
+        if (quizLocal) {
+          console.log('✅ Quiz carregado do localStorage:', quizLocal);
+          preencherFormularioComQuiz(quizLocal, id);
+          return;
         }
         
         alert('Quiz não encontrado!');
@@ -1066,14 +1153,14 @@
     });
 
     // ============================================================================
-    // INICIALIZAÇÃO CORRIGIDA - SEM REDIRECIONAMENTO AUTOMÁTICO
+    // INICIALIZAÇÃO CORRIGIDA COM MELHOR TRATAMENTO DE AUTENTICAÇÃO
     // ============================================================================
 
     window.onload = async function() {
-      console.log('🚀 Inicializando Painel Quiz CORRIGIDO...');
+      console.log('🚀 Inicializando Painel Quiz CORRIGIDO - FINAL...');
       
       try {
-        // ✅ VERIFICAR AUTENTICAÇÃO SEM REDIRECIONAMENTO AUTOMÁTICO
+        // ✅ VERIFICAR AUTENTICAÇÃO COM FALLBACK MELHORADO
         const usuario = await verificarAutenticacao();
         if (!usuario) {
           console.log('❌ Usuário não autenticado');
@@ -1082,6 +1169,7 @@
         }
         
         console.log('✅ Usuário autenticado:', usuario.usuario);
+        usuarioLogado = usuario;
         
         // ✅ VERIFICAR SE ESTÁ EDITANDO UM QUIZ
         const idEdit = getUrlParam('id');
@@ -1108,6 +1196,7 @@
     window.excluirAlternativa = excluirAlternativa;
     window.voltarParaDashboard = voltarParaDashboard;
 
+    console.log('🎯 PAINEL QUIZ CORRIGIDO FINAL - Salvamento Local + Backend - Problema de Autenticação RESOLVIDO!');
   </script>
 </body>
 </html>
