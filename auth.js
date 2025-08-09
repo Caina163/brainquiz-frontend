@@ -110,9 +110,9 @@ class AuthManager {
     localStorage.removeItem('usuarioLogado');
     localStorage.removeItem('authTimestamp');
     
-    // Redirecionar para login
-    if (!window.location.pathname.includes('login.html')) {
-      window.location.href = 'https://brainquiiz.netlify.app/login.html';
+    // Redirecionar para página inicial (que é o login)
+    if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
+      window.location.href = 'https://brainquiiz.netlify.com/';
     }
   }
 
@@ -200,12 +200,13 @@ window.authManager = new AuthManager();
 
 // Verificação automática ao carregar qualquer página (exceto login)
 document.addEventListener('DOMContentLoaded', async () => {
-  if (!window.location.pathname.includes('login.html')) {
+  // Só verificar se NÃO está na página de login (index.html)
+  if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
     const loggedIn = await authManager.isLoggedIn();
     
     if (!loggedIn) {
       console.log('❌ Usuário não autenticado, redirecionando para login');
-      authManager.logout();
+      window.location.href = 'https://brainquiiz.netlify.com/';
     } else {
       console.log('✅ Usuário autenticado');
     }
