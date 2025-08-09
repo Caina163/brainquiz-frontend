@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <title>Cadastro - BrainQuiz</title>
+  <script src="auth.js"></script>
+  <link rel="stylesheet" href="system-styles.css">
   <style>
     body {
       background: linear-gradient(135deg, #000 0%, #1a1a2e 50%, #16213e 100%);
@@ -666,7 +668,7 @@ async function realizarCadastro(formData) {
 
 function voltarLogin() {
   console.log('🔄 Redirecionando para login...');
-  window.location.href = 'index.html';
+  window.location.href = 'https://brainquiiz.netlify.app/index.html';
 }
 
 // ============================================================================
@@ -740,13 +742,9 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log('🔧 Sistema conectado ao backend em https://brainquiz-backend.onrender.com/cadastro');
 });
 
-// ============================================================================
-// DEBUG
-// ============================================================================
-
 console.log('🔧 Sistema de Cadastro CORRIGIDO - Backend Integrado');
 console.log('📡 Endpoint: https://brainquiz-backend.onrender.com/cadastro');
-console.log('🔄 Redirecionamento: index.html');
+console.log('🔄 Redirecionamento: https://brainquiiz.netlify.app/index.html');
 console.log('⏳ Cadastros serão enviados para APROVAÇÃO pelos administradores');
 
 </script>
