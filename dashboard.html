@@ -1,1485 +1,11 @@
-if (currentTab === 'ativos') {
-    card.onclick = (e) => {
-      if (e.target.closest('.gear-menu') || e.target.closest('.menu-options')) {
-        return;
-      }
-      
-      if (!quiz.perguntas || quiz.perguntas.length === 0) {
-        alert('Este quiz ainda não possui perguntas. Edite-o para adicionar perguntas.');
-        return;
-      }
-      
-      const quizParaJogar = {
-        id: quiz.id,
-        nome: quiz.nome || quiz.titulo,
-        imagem: quiz.imagem || quiz.imagemBase64,
-        perguntas: quiz.perguntas,
-        configuracoes: quiz.configuracoes || {}
-      };
-      
-      localStorage.setItem('quizAtual', JSON.stringify(quizParaJogar));
-      window.location.href = 'https://brainquiiz.netlify.app/quiz.html';
-    };
-  }
-
-  return card;
-}
-
-function criarCardUsuario(user) {
-  const card = document.createElement('div');
-  card.className = 'user-card';
-
-  const badge = document.createElement('div');
-  badge.className = `user-badge badge-${user.tipo}`;
-  badge.textContent = user.tipo;
-  card.appendChild(badge);
-
-  if (validarPermissao('gerenciar_usuarios') && user.usuario !== usuarioLogado.usuario) {
-    const gearMenu = document.createElement('div');
-    gearMenu.className = 'gear-menu';
-    gearMenu.style.top = '50px';
-    
-    const menuOptions = document.createElement('div');
-    menuOptions.className = 'menu-options';
-    
-    if (validarPermissao('editar_usuarios')) {
-      const btnEditar = document.createElement('button');
-      btnEditar.textContent = '✏️ Editar';
-      btnEditar.onclick = (e) => {
-        e.stopPropagation();
-        editUser(user);
-      };
-      menuOptions.appendChild(btnEditar);
-    }
-    
-    if (validarPermissao('alterar_senhas')) {
-      const btnSenha = document.createElement('button');
-      btnSenha.textContent = '🔑 Alterar Senha';
-      btnSenha.onclick = (e) => {
-        e.stopPropagation();
-        changePassword(user);
-      };
-      menuOptions.appendChild(btnSenha);
-    }
-    
-    if (validarPermissao('promover_rebaixar') && user.tipo !== 'administrador') {
-      if (user.tipo === 'aluno') {
-        const btnPromover = document.createElement('button');
-        btnPromover.textContent = '⬆️ Promover a Moderador';
-        btnPromover.onclick = (e) => {
-          e.stopPropagation();
-          promoteUser(user);
-        };
-        menuOptions.appendChild(btnPromover);
-      } else if (user.tipo === 'moderador') {
-        const btnRebaixar = document.createElement('button');
-        btnRebaixar.textContent = '⬇️ Rebaixar a Aluno';
-        btnRebaixar.onclick = (e) => {
-          e.stopPropagation();
-          demoteUser(user);
-        };
-        menuOptions.appendChild(btnRebaixar);
-      }
-    }
-    
-    if (validarPermissao('excluir_usuarios')) {
-      const btnExcluir = document.createElement('button');
-      btnExcluir.className = 'danger';
-      btnExcluir.textContent = '🗑️ Excluir';
-      btnExcluir.onclick = (e) => {
-        e.stopPropagation();
-        deleteUser(user);
-      };
-      menuOptions.appendChild(btnExcluir);
-    }
-    
-    if (menuOptions.children.length > 0) {
-      gearMenu.onclick = (e) => {
-        e.stopPropagation();
-        const isVisible = menuOptions.style.display === 'block';
-        document.querySelectorAll('.menu-options').forEach(m => m.style.display = 'none');
-        menuOptions.style.display = isVisible ? 'none' : 'block';
-      };
-      
-      card.appendChild(gearMenu);
-      card.appendChild(menuOptions);
-    }
-  }
-
-  const photo = document.createElement('div');
-  photo.className = 'user-photo';
-  
-  if (user.fotoBase64) {
-    const img = document.createElement('img');
-    img.src = user.fotoBase64;
-    img.alt = user.nome;
-    photo.appendChild(img);
-  } else {
-    photo.textContent = user.nome.charAt(0).toUpperCase();
-  }
-  card.appendChild(photo);
-
-  const title = document.createElement('div');
-  title.className = 'user-title';
-  title.textContent = `${user.nome} ${user.sobrenome || ''}`;
-  card.appendChild(title);
-
-  const info = document.createElement('div');
-  info.style.fontSize = '0.9rem';
-  info.style.color = '#0af';
-  info.style.textAlign = 'center';
-  info.innerHTML = `
-    <div><b>Usuário:</b> ${user.usuario}</div>
-    <div><b>Email:</b> ${user.email}</div>
-    <div><b>Telefone:</b> ${user.telefone || user.celular || '-'}</div>
-  `;
-  card.appendChild(info);
-
-  return card;
-}
-
-function criarCardCadastro(cadastro) {
-  const card = document.createElement('div');
-  card.className = 'user-card';
-  
-  const photo = document.createElement('div');
-  photo.className = 'user-photo';
-  photo.style.width = '60px';
-  photo.style.height = '60px';
-  photo.style.fontSize = '1.5rem';
-  
-  if (cadastro.fotoBase64) {
-    const img = document.createElement('img');
-    img.src = cadastro.fotoBase64;
-    img.alt = cadastro.nome;
-    photo.appendChild(img);
-  } else {
-    photo.textContent = cadastro.nome.charAt(0).toUpperCase();
-  }
-  card.appendChild(photo);
-  
-  const title = document.createElement('div');
-  title.className = 'user-title';
-  title.textContent = `${cadastro.nome} ${cadastro.sobrenome || ''} (${cadastro.usuario})`;
-  card.appendChild(title);
-  
-  const info = document.createElement('div');
-  info.style.fontSize = '0.9rem';
-  info.style.color = '#0af';
-  info.style.textAlign = 'center';
-  info.innerHTML = `
-    <div><b>Email:</b> ${cadastro.email}</div>
-    <div><b>Telefone:</b> ${cadastro.telefone || cadastro.celular || '-'}</div>
-    <div><b>Tipo Solicitado:</b> ${cadastro.tipoSolicitado || 'aluno'}</div>
-    <div style="color: #ffa726; margin-top: 10px;"><b>⏳ AGUARDANDO APROVAÇÃO</b></div>
-  `;
-  card.appendChild(info);
-  
-  const actions = document.createElement('div');
-  actions.className = 'user-actions';
-  
-  const btnAprovar = document.createElement('button');
-  btnAprovar.textContent = '✅ Aprovar';
-  btnAprovar.onclick = () => aprovarCadastro(cadastro);
-  
-  const btnRejeitar = document.createElement('button');
-  btnRejeitar.textContent = '❌ Rejeitar';
-  btnRejeitar.className = 'danger';
-  btnRejeitar.onclick = () => rejeitarCadastro(cadastro);
-  
-  actions.appendChild(btnAprovar);
-  actions.appendChild(btnRejeitar);
-  card.appendChild(actions);
-
-  return card;
-}
-
-// ============================================================================
-// EXIBIÇÃO DE CONTEÚDO PRINCIPAL
-// ============================================================================
-
-function exibirConteudo() {
-  console.log('📺 Exibindo conteúdo da aba:', currentTab);
-  quizzesContainer.innerHTML = '';
-
-  switch (currentTab) {
-    case 'ativos':
-      exibirQuizzes(quizzes, 'Quizzes Ativos');
-      break;
-    case 'arquivados':
-      if (validarPermissao('ver_arquivados')) {
-        exibirQuizzes(quizzesArquivados, 'Quizzes Arquivados');
-      } else {
-        mostrarSemPermissao();
-      }
-      break;
-    case 'usuarios':
-      if (validarPermissao('gerenciar_usuarios')) {
-        exibirUsuarios();
-      } else {
-        mostrarSemPermissao();
-      }
-      break;
-    case 'cadastros':
-      if (validarPermissao('gerenciar_usuarios')) {
-        exibirCadastrosPendentes();
-      } else {
-        mostrarSemPermissao();
-      }
-      break;
-    case 'excluidos':
-      if (validarPermissao('ver_excluidos')) {
-        exibirExcluidos();
-      } else {
-        mostrarSemPermissao();
-      }
-      break;
-    case 'pdfs':
-      exibirPDFs();
-      break;
-    case 'calendario':
-      exibirCalendario();
-      break;
-    case 'perfil':
-      exibirPerfil();
-      break;
-    default:
-      quizzesContainer.innerHTML = '<p class="empty-message">Nenhum conteúdo disponível.</p>';
-      break;
-  }
-}
-
-function mostrarSemPermissao() {
-  quizzesContainer.innerHTML = `
-    <div class="error">
-      <h3>🚫 Acesso Negado</h3>
-      <p>Você não tem permissão para acessar esta área.</p>
-    </div>
-  `;
-}
-
-function exibirQuizzes(lista, titulo = 'Quizzes') {
-  console.log(`📋 Exibindo ${titulo}:`, lista.length, 'items');
-  
-  if (!lista.length) {
-    quizzesContainer.innerHTML = `<p class="empty-message">Nenhum quiz em "${titulo}".</p>`;
-    return;
-  }
-
-  const title = document.createElement('div');
-  title.className = 'section-title';
-  title.innerHTML = `<span>${titulo} (${lista.length})</span>`;
-  quizzesContainer.appendChild(title);
-
-  const grid = document.createElement('div');
-  grid.className = 'items-grid';
-
-  lista.forEach(quiz => {
-    const card = criarCardQuiz(quiz);
-    grid.appendChild(card);
-  });
-
-  quizzesContainer.appendChild(grid);
-}
-
-function exibirUsuarios() {
-  console.log('👥 Exibindo usuários:', users.length);
-  
-  const title = document.createElement('div');
-  title.className = 'section-title';
-  title.innerHTML = `<span>👥 Gerenciar Usuários (${users.length})</span>`;
-  quizzesContainer.appendChild(title);
-
-  if (users.length === 0) {
-    quizzesContainer.innerHTML += '<p class="empty-message">Nenhum usuário cadastrado.</p>';
-    return;
-  }
-
-  const grid = document.createElement('div');
-  grid.className = 'items-grid';
-
-  users.forEach(user => {
-    const card = criarCardUsuario(user);
-    grid.appendChild(card);
-  });
-
-  quizzesContainer.appendChild(grid);
-}
-
-function exibirCadastrosPendentes() {
-  console.log('⏳ Exibindo cadastros pendentes:', cadastros.length);
-  
-  const title = document.createElement('div');
-  title.className = 'section-title';
-  title.innerHTML = `<span>⏳ Cadastros Pendentes (${cadastros.length})</span>`;
-  quizzesContainer.appendChild(title);
-
-  if (cadastros.length === 0) {
-    quizzesContainer.innerHTML += '<p class="empty-message">Nenhum cadastro pendente.</p>';
-    return;
-  }
-
-  const grid = document.createElement('div');
-  grid.className = 'items-grid';
-
-  cadastros.forEach(cadastro => {
-    const card = criarCardCadastro(cadastro);
-    grid.appendChild(card);
-  });
-
-  quizzesContainer.appendChild(grid);
-}
-
-function exibirExcluidos() {
-  console.log('🗑️ Exibindo itens excluídos');
-  
-  const container = document.createElement('div');
-  
-  if (quizzesExcluidos.length > 0) {
-    const quizSection = document.createElement('div');
-    quizSection.className = 'section-container';
-    
-    const quizTitle = document.createElement('div');
-    quizTitle.className = 'section-title';
-    quizTitle.innerHTML = '<span>🎯 Quizzes Excluídos</span>';
-    quizSection.appendChild(quizTitle);
-    
-    const quizGrid = document.createElement('div');
-    quizGrid.className = 'items-grid';
-    
-    quizzesExcluidos.forEach(quiz => {
-      const card = criarCardQuiz(quiz);
-      quizGrid.appendChild(card);
-    });
-    
-    quizSection.appendChild(quizGrid);
-    container.appendChild(quizSection);
-  }
-  
-  if (pdfsExcluidos.length > 0) {
-    const pdfSection = document.createElement('div');
-    pdfSection.className = 'section-container';
-    
-    const pdfTitle = document.createElement('div');
-    pdfTitle.className = 'section-title';
-    pdfTitle.innerHTML = '<span>📄 PDFs Excluídos</span>';
-    pdfSection.appendChild(pdfTitle);
-    
-    const pdfGrid = document.createElement('div');
-    pdfGrid.className = 'items-grid';
-    
-    pdfsExcluidos.forEach(pdf => {
-      const card = criarCardPdf(pdf);
-      pdfGrid.appendChild(card);
-    });
-    
-    pdfSection.appendChild(pdfGrid);
-    container.appendChild(pdfSection);
-  }
-  
-  if (quizzesExcluidos.length === 0 && pdfsExcluidos.length === 0) {
-    container.innerHTML = '<p class="empty-message">🗑️ Nenhum item na lixeira.</p>';
-  }
-  
-  quizzesContainer.appendChild(container);
-}
-
-function exibirPDFs() {
-  console.log('📄 Exibindo PDFs:', pdfs.length);
-  
-  const title = document.createElement('div');
-  title.className = 'section-title';
-  title.innerHTML = `
-    <span>📄 Gerenciar PDFs (${pdfs.length})</span>
-    <div class="section-actions">
-      ${validarPermissao('upload_pdf') ? '<button class="upload-btn" onclick="uploadPDF()">📤 Upload PDF</button>' : ''}
-    </div>
-  `;
-  quizzesContainer.appendChild(title);
-
-  if (pdfs.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'empty-section';
-    empty.innerHTML = `
-      <h3>📄 Nenhum PDF disponível</h3>
-      <p>Os PDFs enviados aparecerão aqui.</p>
-      ${validarPermissao('upload_pdf') ? '<button class="upload-btn" onclick="uploadPDF()" style="margin-top: 20px;">📤 Fazer Upload</button>' : ''}
-    `;
-    quizzesContainer.appendChild(empty);
-    return;
-  }
-
-  const pdfsGrid = document.createElement('div');
-  pdfsGrid.className = 'items-grid';
-
-  pdfs.forEach(pdf => {
-    const card = criarCardPdf(pdf);
-    pdfsGrid.appendChild(card);
-  });
-
-  quizzesContainer.appendChild(pdfsGrid);
-}
-
-function exibirPerfil() {
-  console.log('👤 Exibindo perfil do usuário');
-  
-  const container = document.createElement('div');
-  container.className = 'perfil-form';
-  
-  const form = document.createElement('form');
-  form.onsubmit = (e) => {
-    e.preventDefault();
-    saveProfile();
-  };
-  
-  form.innerHTML = `
-    <h2>👤 Meu Perfil</h2>
-    
-    <div class="photo-upload">
-      <div class="current-photo" onclick="changeProfilePhoto()">
-        ${usuarioLogado.fotoBase64 ? 
-          `<img src="${usuarioLogado.fotoBase64}" alt="Foto do perfil">` : 
-          usuarioLogado.nome.charAt(0).toUpperCase()
-        }
-      </div>
-      <p style="color: #666; font-size: 0.9rem;">Clique na foto para alterar</p>
-    </div>
-
-    <div class="form-group">
-      <label for="profileNome">Nome:</label>
-      <input type="text" id="profileNome" value="${usuarioLogado.nome}" required>
-    </div>
-
-    <div class="form-group">
-      <label for="profileSobrenome">Sobrenome:</label>
-      <input type="text" id="profileSobrenome" value="${usuarioLogado.sobrenome || ''}">
-    </div>
-
-    <div class="form-group">
-      <label for="profileUsuario">Usuário:</label>
-      <input type="text" id="profileUsuario" value="${usuarioLogado.usuario}" disabled style="background: #333; color: #666;">
-    </div>
-
-    <div class="form-group">
-      <label for="profileEmail">Email:</label>
-      <input type="email" id="profileEmail" value="${usuarioLogado.email}" required>
-    </div>
-
-    <div class="form-group">
-      <label for="profileTelefone">Telefone:</label>
-      <input type="text" id="profileTelefone" value="${usuarioLogado.telefone || ''}">
-    </div>
-
-    <div class="form-group">
-      <label for="profileTipo">Tipo de Usuário:</label>
-      <input type="text" id="profileTipo" value="${usuarioLogado.tipo}" disabled style="background: #333; color: #666;">
-    </div>
-
-    <button type="submit" class="save-btn">💾 Salvar Alterações</button>
-  `;
-  
-  container.appendChild(form);
-  quizzesContainer.appendChild(container);
-}
-
-function changeProfilePhoto() {
-  const photoInput = document.getElementById('profilePhotoInput');
-  photoInput.click();
-}
-
-function handleProfilePhotoUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  
-  if (!file.type.startsWith('image/')) {
-    alert('Apenas arquivos de imagem são permitidos!');
-    return;
-  }
-  
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const currentPhoto = document.querySelector('.current-photo');
-    currentPhoto.innerHTML = `<img src="${e.target.result}" alt="Foto do perfil">`;
-    window.tempProfilePhoto = e.target.result;
-  };
-  
-  reader.readAsDataURL(file);
-}
-
-async function saveProfile() {
-  const nome = document.getElementById('profileNome').value.trim();
-  const sobrenome = document.getElementById('profileSobrenome').value.trim();
-  const email = document.getElementById('profileEmail').value.trim();
-  const telefone = document.getElementById('profileTelefone').value.trim();
-  
-  if (!nome || !email) {
-    alert('Nome e email são obrigatórios!');
-    return;
-  }
-  
-  pendingProfileData = {
-    nome,
-    sobrenome,
-    email,
-    telefone,
-    fotoBase64: window.tempProfilePhoto || usuarioLogado.fotoBase64
-  };
-  
-  openModal('profilePasswordModal');
-}
-
-async function confirmProfileSave() {
-  const currentPassword = document.getElementById('currentPassword').value;
-  
-  if (!currentPassword) {
-    alert('Digite sua senha atual para confirmar!');
-    return;
-  }
-  
-  try {
-    const response = await fetch('https://brainquiz-backend.onrender.com/api/perfil', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        ...pendingProfileData,
-        senhaAtual: currentPassword
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      usuarioLogado = {
-        ...usuarioLogado,
-        ...pendingProfileData
-      };
-      
-      closeModal('profilePasswordModal');
-      exibirConteudo();
-      mostrarMensagemSucesso('Perfil atualizado com sucesso!');
-    } else {
-      alert('Erro: ' + data.message);
-    }
-  } catch (error) {
-    console.error('Erro ao salvar perfil:', error);
-    alert('Erro de conexão ao salvar perfil');
-  }
-}
-
-// ============================================================================
-// FUNÇÕES AUXILIARES
-// ============================================================================
-
-function mostrarMensagemSucesso(mensagem) {
-  console.log('📢 Mensagem:', mensagem);
-  mensagemSucesso.textContent = mensagem;
-  mensagemSucesso.classList.add('show');
-  
-  setTimeout(() => {
-    mensagemSucesso.classList.remove('show');
-  }, 4000);
-}
-
-function mostrarLoading(mensagem = 'Carregando...') {
-  quizzesContainer.innerHTML = `<div class="loading">${mensagem}</div>`;
-}
-
-function esconderLoading() {
-  const loading = document.querySelector('.loading');
-  if (loading) loading.remove();
-}
-
-// ============================================================================
-// INICIALIZAÇÃO PRINCIPAL - 100% BACKEND REAL
-// ============================================================================
-
-async function inicializarSistema() {
-  try {
-    console.log('🚀 Iniciando Dashboard 100% Backend Real...');
-    
-    mostrarLoading('Verificando autenticação...');
-    const usuarioValido = await verificarUsuarioLogado();
-    if (!usuarioValido) return;
-    
-    mostrarLoading('Carregando dados do sistema...');
-    await carregarDadosReais();
-    
-    mostrarLoading('Configurando interface...');
-    configurarBotoesPrincipais();
-    configurarTabs();
-    
-    exibirConteudo();
-    esconderLoading();
-    
-    console.log('✅ Sistema inicializado com sucesso!');
-    console.log('👤 Usuário:', usuarioLogado.usuario, '(' + usuarioLogado.tipo + ')');
-    console.log('📊 Dados carregados:', {
-      quizzes: quizzes.length,
-      usuarios: users.length,
-      cadastros: cadastros.length,
-      pdfs: pdfs.length
-    });
-    
-    mostrarMensagemSucesso(`✅ Bem-vindo, ${usuarioLogado.nome}! Dashboard carregado com sucesso.`);
-    
-  } catch (error) {
-    console.error('❌ Erro na inicialização:', error);
-    quizzesContainer.innerHTML = `
-      <div class="error">
-        <h3>❌ Erro na Inicialização</h3>
-        <p>Erro: ${error.message}</p>
-        <button onclick="location.reload()" style="margin-top: 15px; padding: 10px 20px; background: #0af; border: none; border-radius: 5px; color: #000; font-weight: bold; cursor: pointer;">🔄 Tentar Novamente</button>
-      </div>
-    `;
-  }
-}
-
-// ============================================================================
-// EVENT LISTENERS E INICIALIZAÇÃO
-// ============================================================================
-
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('📄 DOM carregado, iniciando sistema...');
-  
-  const fileInput = document.getElementById('fileInput');
-  fileInput.addEventListener('change', handleFileUpload);
-  
-  const profilePhotoInput = document.getElementById('profilePhotoInput');
-  profilePhotoInput.addEventListener('change', handleProfilePhotoUpload);
-
-  criarParticulas();
-  inicializarSistema();
-});
-
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.gear-menu') && !e.target.closest('.menu-options')) {
-    document.querySelectorAll('.menu-options').forEach(menu => {
-      menu.style.display = 'none';
-    });
-  }
-});
-
-console.log('🎯 DASHBOARD 100% BACKEND REAL CARREGADO - v6.0 FINAL!');
-
-</script>
-</body>
-</html> (index !== -1) {
-        const novoUsuario = { ...cadastro, tipo: 'aluno', status: 'aprovado' };
-        cadastros.splice(index, 1);
-        users.push(novoUsuario);
-      }
-      
-      exibirConteudo();
-      mostrarMensagemSucesso(`Usuário ${cadastro.usuario} aprovado como aluno!`);
-    } else {
-      alert('Erro ao aprovar cadastro: ' + data.message);
-    }
-  } catch (error) {
-    console.error('Erro ao aprovar cadastro:', error);
-    alert('Erro de conexão ao aprovar cadastro');
-  }
-}
-
-async function rejeitarCadastro(cadastro) {
-  if (confirm(`Deseja rejeitar o cadastro de ${cadastro.usuario}?`)) {
-    try {
-      const response = await fetch(`https://brainquiz-backend.onrender.com/api/cadastros/${cadastro.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        const index = cadastros.findIndex(c => c.id === cadastro.id);
-        if (index !== -1) {
-          cadastros.splice(index, 1);
-        }
-        
-        exibirConteudo();
-        mostrarMensagemSucesso(`Cadastro de ${cadastro.usuario} rejeitado.`);
-      } else {
-        alert('Erro ao rejeitar cadastro: ' + data.message);
-      }
-    } catch (error) {
-      console.error('Erro ao rejeitar cadastro:', error);
-      alert('Erro de conexão ao rejeitar cadastro');
-    }
-  }
-}
-
-// ============================================================================
-// FUNÇÕES DE GERENCIAMENTO DE QUIZ - BACKEND REAL
-// ============================================================================
-
-async function arquivarQuiz(quiz) {
-  if (confirm(`Deseja arquivar o quiz "${quiz.nome || quiz.titulo}"?`)) {
-    try {
-      const response = await fetch(`https://brainquiz-backend.onrender.com/api/quizzes/${quiz.id}/arquivar`, {
-        method: 'PUT',
-        credentials: 'include'
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        const index = quizzes.findIndex(q => q.id === quiz.id);
-        if (index !== -1) {
-          const quizArquivado = { ...quiz, arquivado: true };
-          quizzes.splice(index, 1);
-          quizzesArquivados.push(quizArquivado);
-        }
-        
-        exibirConteudo();
-        mostrarMensagemSucesso(`Quiz "${quiz.nome || quiz.titulo}" arquivado com sucesso!`);
-      } else {
-        alert('Erro ao arquivar quiz: ' + data.message);
-      }
-    } catch (error) {
-      console.error('Erro ao arquivar quiz:', error);
-      alert('Erro de conexão ao arquivar quiz');
-    }
-  }
-}
-
-async function desarquivarQuiz(quiz) {
-  if (confirm(`Deseja desarquivar o quiz "${quiz.nome || quiz.titulo}"?`)) {
-    try {
-      const response = await fetch(`https://brainquiz-backend.onrender.com/api/quizzes/${quiz.id}/desarquivar`, {
-        method: 'PUT',
-        credentials: 'include'
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        const index = quizzesArquivados.findIndex(q => q.id === quiz.id);
-        if (index !== -1) {
-          const quizDesarquivado = { ...quiz };
-          delete quizDesarquivado.arquivado;
-          quizzesArquivados.splice(index, 1);
-          quizzes.push(quizDesarquivado);
-        }
-        
-        exibirConteudo();
-        mostrarMensagemSucesso(`Quiz "${quiz.nome || quiz.titulo}" desarquivado com sucesso!`);
-      } else {
-        alert('Erro ao desarquivar quiz: ' + data.message);
-      }
-    } catch (error) {
-      console.error('Erro ao desarquivar quiz:', error);
-      alert('Erro de conexão ao desarquivar quiz');
-    }
-  }
-}
-
-async function excluirQuiz(quiz) {
-  if (confirm(`Deseja realmente excluir o quiz "${quiz.nome || quiz.titulo}"? Ele será movido para a lixeira.`)) {
-    try {
-      const response = await fetch(`https://brainquiz-backend.onrender.com/api/quizzes/${quiz.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        let index = quizzes.findIndex(q => q.id === quiz.id);
-        let origem = 'ativo';
-        
-        if (index === -1) {
-          index = quizzesArquivados.findIndex(q => q.id === quiz.id);
-          origem = 'arquivado';
-        }
-        
-        if (index !== -1) {
-          const quizExcluido = { ...quiz, excluido: true };
-          
-          if (origem === 'ativo') {
-            quizzes.splice(index, 1);
-          } else {
-            quizzesArquivados.splice(index, 1);
-          }
-          
-          quizzesExcluidos.push(quizExcluido);
-        }
-        
-        exibirConteudo();
-        mostrarMensagemSucesso(`Quiz "${quiz.nome || quiz.titulo}" excluído com sucesso!`);
-      } else {
-        alert('Erro ao excluir quiz: ' + data.message);
-      }
-    } catch (error) {
-      console.error('Erro ao excluir quiz:', error);
-      alert('Erro de conexão ao excluir quiz');
-    }
-  }
-}
-
-// ============================================================================
-// FUNÇÕES DE GERENCIAMENTO DE USUÁRIOS - BACKEND REAL
-// ============================================================================
-
-function editUser(user) {
-  if (!validarPermissao('editar_usuarios')) {
-    alert('Você não tem permissão para editar usuários.');
-    return;
-  }
-  
-  currentEditingUser = user;
-  const nomeCompleto = `${user.nome || ''} ${user.sobrenome || ''}`.trim();
-  document.getElementById('editUserName').value = nomeCompleto;
-  document.getElementById('editUserEmail').value = user.email || '';
-  document.getElementById('editUserPhone').value = user.telefone || user.celular || '';
-  document.getElementById('editUserType').value = user.tipo || 'aluno';
-  openModal('editUserModal');
-}
-
-async function saveUserEdit() {
-  if (!currentEditingUser) return;
-  
-  const fullName = document.getElementById('editUserName').value.trim().split(' ');
-  const nome = fullName[0];
-  const sobrenome = fullName.slice(1).join(' ');
-  const email = document.getElementById('editUserEmail').value.trim();
-  const telefone = document.getElementById('editUserPhone').value.trim();
-  const tipo = document.getElementById('editUserType').value;
-  
-  if (!nome || !email) {
-    alert('Nome e email são obrigatórios!');
-    return;
-  }
-  
-  if (currentEditingUser.tipo !== tipo && !validarPermissao('promover_rebaixar')) {
-    alert('Apenas administradores podem alterar o tipo de usuário.');
-    return;
-  }
-  
-  try {
-    if (currentEditingUser.tipo !== tipo) {
-      const roleResponse = await fetch('https://brainquiz-backend.onrender.com/alterar-role', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          usuario: currentEditingUser.usuario,
-          role: tipo
-        })
-      });
-      
-      const roleData = await roleResponse.json();
-      if (!roleData.success) {
-        alert('Erro ao alterar tipo de usuário: ' + roleData.message);
-        return;
-      }
-    }
-    
-    const response = await fetch(`https://brainquiz-backend.onrender.com/api/usuarios/${currentEditingUser.usuario}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        nome,
-        sobrenome,
-        email,
-        telefone,
-        tipo
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      const userIndex = users.findIndex(u => u.usuario === currentEditingUser.usuario || u.id === currentEditingUser.id);
-      if (userIndex !== -1) {
-        users[userIndex].nome = nome;
-        users[userIndex].sobrenome = sobrenome;
-        users[userIndex].email = email;
-        users[userIndex].telefone = telefone;
-        users[userIndex].tipo = tipo;
-      }
-      
-      closeModal('editUserModal');
-      exibirConteudo();
-      mostrarMensagemSucesso(`Usuário ${currentEditingUser.usuario} editado com sucesso!`);
-    } else {
-      alert('Erro ao editar usuário: ' + data.message);
-    }
-    
-  } catch (error) {
-    console.error('Erro ao salvar usuário:', error);
-    alert('Erro de conexão ao salvar usuário');
-  }
-}
-
-function changePassword(user) {
-  if (!validarPermissao('alterar_senhas')) {
-    alert('Você não tem permissão para alterar senhas.');
-    return;
-  }
-  
-  currentEditingUser = user;
-  document.getElementById('newPassword').value = '';
-  document.getElementById('confirmPassword').value = '';
-  openModal('changePasswordModal');
-}
-
-async function changeUserPassword() {
-  if (!currentEditingUser) return;
-  
-  const newPassword = document.getElementById('newPassword').value.trim();
-  const confirmPassword = document.getElementById('confirmPassword').value.trim();
-  
-  if (!newPassword || !confirmPassword) {
-    alert('Digite e confirme a nova senha!');
-    return;
-  }
-  
-  if (newPassword !== confirmPassword) {
-    alert('As senhas não coincidem!');
-    return;
-  }
-  
-  if (newPassword.length < 6) {
-    alert('A senha deve ter pelo menos 6 caracteres!');
-    return;
-  }
-  
-  try {
-    const response = await fetch('https://brainquiz-backend.onrender.com/alterar-senha', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        usuario: currentEditingUser.usuario,
-        novaSenha: newPassword
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      closeModal('changePasswordModal');
-      mostrarMensagemSucesso(`Senha do usuário ${currentEditingUser.usuario} alterada com sucesso!`);
-    } else {
-      alert('Erro ao alterar senha: ' + data.message);
-    }
-  } catch (error) {
-    console.error('Erro ao alterar senha:', error);
-    alert('Erro de conexão ao alterar senha');
-  }
-}
-
-async function deleteUser(user) {
-  if (!validarPermissao('excluir_usuarios')) {
-    alert('Apenas administradores podem excluir usuários.');
-    return;
-  }
-  
-  if (user.usuario === usuarioLogado.usuario) {
-    alert('Você não pode excluir seu próprio usuário!');
-    return;
-  }
-  
-  if (confirm(`Deseja realmente excluir o usuário ${user.usuario}? Esta ação não pode ser desfeita.`)) {
-    try {
-      const response = await fetch('https://brainquiz-backend.onrender.com/excluir-usuario', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          usuario: user.usuario
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        const userIndex = users.findIndex(u => u.usuario === user.usuario);
-        if (userIndex !== -1) {
-          users.splice(userIndex, 1);
-        }
-        
-        exibirConteudo();
-        mostrarMensagemSucesso(`Usuário ${user.usuario} excluído com sucesso!`);
-      } else {
-        alert('Erro ao excluir usuário: ' + data.message);
-      }
-    } catch (error) {
-      console.error('Erro ao excluir usuário:', error);
-      alert('Erro de conexão ao excluir usuário');
-    }
-  }
-}
-
-async function promoteUser(user) {
-  if (!validarPermissao('promover_rebaixar')) {
-    alert('Apenas administradores podem promover usuários.');
-    return;
-  }
-  
-  const newType = user.tipo === 'aluno' ? 'moderador' : 'administrador';
-  if (confirm(`Deseja promover ${user.usuario} para ${newType}?`)) {
-    try {
-      const response = await fetch('https://brainquiz-backend.onrender.com/alterar-role', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          usuario: user.usuario,
-          role: newType
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        const userIndex = users.findIndex(u => u.usuario === user.usuario);
-        if (userIndex !== -1) {
-          users[userIndex].tipo = newType;
-        }
-        
-        exibirConteudo();
-        mostrarMensagemSucesso(`${user.usuario} promovido para ${newType}!`);
-      } else {
-        alert('Erro ao promover usuário: ' + data.message);
-      }
-    } catch (error) {
-      console.error('Erro ao promover usuário:', error);
-      alert('Erro de conexão ao promover usuário');
-    }
-  }
-}
-
-async function demoteUser(user) {
-  if (!validarPermissao('promover_rebaixar')) {
-    alert('Apenas administradores podem rebaixar usuários.');
-    return;
-  }
-  
-  const newType = user.tipo === 'administrador' ? 'moderador' : 'aluno';
-  if (confirm(`Deseja rebaixar ${user.usuario} para ${newType}?`)) {
-    try {
-      const response = await fetch('https://brainquiz-backend.onrender.com/alterar-role', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          usuario: user.usuario,
-          role: newType
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        const userIndex = users.findIndex(u => u.usuario === user.usuario);
-        if (userIndex !== -1) {
-          users[userIndex].tipo = newType;
-        }
-        
-        exibirConteudo();
-        mostrarMensagemSucesso(`${user.usuario} rebaixado para ${newType}!`);
-      } else {
-        alert('Erro ao rebaixar usuário: ' + data.message);
-      }
-    } catch (error) {
-      console.error('Erro ao rebaixar usuário:', error);
-      alert('Erro de conexão ao rebaixar usuário');
-    }
-  }
-}
-
-// ============================================================================
-// FUNÇÕES DE PDF - BACKEND REAL
-// ============================================================================
-
-function uploadPDF() {
-  if (!validarPermissao('upload_pdf')) {
-    alert('Você não tem permissão para fazer upload de PDFs.');
-    return;
-  }
-  
-  const fileInput = document.getElementById('fileInput');
-  fileInput.click();
-}
-
-async function handleFileUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  
-  if (file.type !== 'application/pdf') {
-    alert('Apenas arquivos PDF são permitidos!');
-    return;
-  }
-  
-  const reader = new FileReader();
-  reader.onload = async function(e) {
-    try {
-      const response = await fetch('https://brainquiz-backend.onrender.com/upload-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          nome: file.name,
-          base64: e.target.result
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        await carregarDadosReais();
-        
-        if (currentTab === 'pdfs') {
-          exibirConteudo();
-        }
-        
-        mostrarMensagemSucesso(`PDF "${file.name}" enviado com sucesso! (Bloqueado para download)`);
-      } else {
-        alert('Erro ao enviar PDF: ' + data.message);
-      }
-    } catch (error) {
-      console.error('Erro ao enviar PDF:', error);
-      alert('Erro de conexão ao enviar PDF');
-    }
-  };
-  
-  reader.readAsDataURL(file);
-}
-
-async function togglePdfLock(pdf) {
-  if (!validarPermissao('gerenciar_pdfs')) {
-    alert('Apenas administradores podem alterar o status dos PDFs.');
-    return;
-  }
-  
-  try {
-    const response = await fetch(`https://brainquiz-backend.onrender.com/api/pdfs/${pdf.id}/toggle-lock`, {
-      method: 'PUT',
-      credentials: 'include'
-    });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      const pdfIndex = pdfs.findIndex(p => p.id === pdf.id);
-      if (pdfIndex !== -1) {
-        pdfs[pdfIndex].bloqueado = !pdfs[pdfIndex].bloqueado;
-      }
-      
-      exibirConteudo();
-      mostrarMensagemSucesso(data.message);
-    } else {
-      alert('Erro: ' + data.message);
-    }
-  } catch (error) {
-    console.error('Erro ao alterar PDF:', error);
-    alert('Erro de conexão');
-  }
-}
-
-function downloadPdf(pdf) {
-  if (pdf.bloqueado) {
-    alert('Este PDF está bloqueado para download. Entre em contato com um administrador.');
-    return;
-  }
-  
-  const link = document.createElement('a');
-  link.href = pdf.base64 || pdf.dados;
-  link.download = pdf.nome;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
-function viewPdf(pdf) {
-  const modal = document.getElementById('pdfViewerModal');
-  const title = document.getElementById('pdfViewerTitle');
-  const frame = document.getElementById('pdfFrame');
-  
-  title.textContent = pdf.nome;
-  frame.src = pdf.base64 || pdf.dados;
-  modal.style.display = 'block';
-}
-
-function closePdfViewer() {
-  const modal = document.getElementById('pdfViewerModal');
-  const frame = document.getElementById('pdfFrame');
-  modal.style.display = 'none';
-  frame.src = '';
-}
-
-async function deletePdf(pdf) {
-  if (!validarPermissao('gerenciar_pdfs')) {
-    alert('Apenas administradores podem excluir PDFs.');
-    return;
-  }
-  
-  if (confirm(`Deseja realmente excluir o PDF "${pdf.nome}"? Ele será movido para a lixeira.`)) {
-    try {
-      const response = await fetch(`https://brainquiz-backend.onrender.com/api/pdfs/${pdf.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        const pdfIndex = pdfs.findIndex(p => p.id === pdf.id);
-        if (pdfIndex !== -1) {
-          const pdfExcluido = { ...pdf, excluido: true, dataExclusao: new Date().toISOString() };
-          
-          pdfs.splice(pdfIndex, 1);
-          pdfsExcluidos.push(pdfExcluido);
-        }
-        
-        exibirConteudo();
-        mostrarMensagemSucesso(`PDF "${pdf.nome}" excluído com sucesso!`);
-      } else {
-        alert('Erro ao excluir PDF: ' + data.message);
-      }
-    } catch (error) {
-      console.error('Erro ao excluir PDF:', error);
-      alert('Erro de conexão ao excluir PDF');
-    }
-  }
-}
-
-// ============================================================================
-// FUNÇÕES DE MODAL E INTERFACE
-// ============================================================================
-
-function openModal(modalId) {
-  document.getElementById(modalId).style.display = 'block';
-  
-  const modal = document.getElementById(modalId);
-  const closeBtn = modal.querySelector('.close');
-  closeBtn.onclick = () => closeModal(modalId);
-  
-  window.onclick = function(event) {
-    if (event.target === modal) {
-      closeModal(modalId);
-    }
-  };
-}
-
-function closeModal(modalId) {
-  document.getElementById(modalId).style.display = 'none';
-  currentEditingUser = null;
-  pendingProfileData = null;
-}
-
-// ============================================================================
-// CRIAÇÃO DE CARDS ESPECÍFICOS
-// ============================================================================
-
-function criarCardPdf(pdf) {
-  const card = document.createElement('div');
-  card.className = 'pdf-card';
-
-  const icon = document.createElement('div');
-  icon.className = 'pdf-icon';
-  icon.textContent = '📄';
-  icon.onclick = () => viewPdf(pdf);
-  card.appendChild(icon);
-
-  const name = document.createElement('div');
-  name.className = 'pdf-card-name';
-  name.textContent = pdf.nome;
-  card.appendChild(name);
-
-  const status = document.createElement('div');
-  status.className = `pdf-status ${pdf.bloqueado ? 'pdf-locked' : 'pdf-unlocked'}`;
-  status.innerHTML = pdf.bloqueado ? '🔒 Download Bloqueado' : '🔓 Download Liberado';
-  card.appendChild(status);
-
-  const info = document.createElement('div');
-  info.style.fontSize = '0.8rem';
-  info.style.color = '#666';
-  info.style.textAlign = 'center';
-  info.style.marginTop = '10px';
-  info.innerHTML = `
-    <div>Enviado por: ${pdf.uploadedBy}</div>
-    <div>${new Date(pdf.uploadedAt || pdf.dataUpload).toLocaleDateString('pt-BR')}</div>
-  `;
-  card.appendChild(info);
-
-  if (validarPermissao('gerenciar_pdfs') || currentTab === 'excluidos') {
-    const gearMenu = document.createElement('div');
-    gearMenu.className = 'gear-menu';
-    
-    const menuOptions = document.createElement('div');
-    menuOptions.className = 'menu-options';
-    
-    if (currentTab === 'excluidos') {
-      const btnRestaurar = document.createElement('button');
-      btnRestaurar.textContent = '🔄 Restaurar';
-      btnRestaurar.onclick = (e) => {
-        e.stopPropagation();
-        restaurarPdf(pdf);
-      };
-      
-      const btnExcluirPermanente = document.createElement('button');
-      btnExcluirPermanente.className = 'danger';
-      btnExcluirPermanente.textContent = '💀 Excluir Permanentemente';
-      btnExcluirPermanente.onclick = (e) => {
-        e.stopPropagation();
-        excluirPdfPermanentemente(pdf);
-      };
-      
-      menuOptions.appendChild(btnRestaurar);
-      menuOptions.appendChild(btnExcluirPermanente);
-    } else {
-      const btnToggleLock = document.createElement('button');
-      btnToggleLock.textContent = pdf.bloqueado ? '🔓 Liberar Download' : '🔒 Bloquear Download';
-      btnToggleLock.onclick = (e) => {
-        e.stopPropagation();
-        togglePdfLock(pdf);
-      };
-      
-      const btnExcluir = document.createElement('button');
-      btnExcluir.className = 'danger';
-      btnExcluir.textContent = '🗑️ Excluir';
-      btnExcluir.onclick = (e) => {
-        e.stopPropagation();
-        deletePdf(pdf);
-      };
-      
-      menuOptions.appendChild(btnToggleLock);
-      menuOptions.appendChild(btnExcluir);
-    }
-    
-    gearMenu.onclick = (e) => {
-      e.stopPropagation();
-      const isVisible = menuOptions.style.display === 'block';
-      document.querySelectorAll('.menu-options').forEach(m => m.style.display = 'none');
-      menuOptions.style.display = isVisible ? 'none' : 'block';
-    };
-    
-    card.appendChild(gearMenu);
-    card.appendChild(menuOptions);
-  }
-
-  const actions = document.createElement('div');
-  actions.className = 'user-actions';
-  actions.style.marginTop = '15px';
-
-  const btnView = document.createElement('button');
-  btnView.textContent = '👀 Visualizar';
-  btnView.onclick = () => viewPdf(pdf);
-  
-  const btnDownload = document.createElement('button');
-  btnDownload.textContent = '📥 Download';
-  btnDownload.onclick = () => downloadPdf(pdf);
-  
-  if (pdf.bloqueado) {
-    btnDownload.disabled = true;
-    btnDownload.title = 'Download bloqueado pelo administrador';
-    btnDownload.style.background = '#666';
-    btnDownload.style.color = '#999';
-  }
-
-  actions.appendChild(btnView);
-  actions.appendChild(btnDownload);
-  card.appendChild(actions);
-
-  return card;
-}
-
-function criarCardQuiz(quiz) {
-  const card = document.createElement('div');
-  card.className = 'quiz-card';
-
-  if (quiz.imagem || quiz.imagemBase64) {
-    const img = document.createElement('img');
-    img.src = quiz.imagem || quiz.imagemBase64;
-    img.alt = quiz.nome || quiz.titulo;
-    img.className = 'quiz-image';
-    card.appendChild(img);
-  }
-
-  const title = document.createElement('div');
-  title.className = 'quiz-title';
-  title.textContent = quiz.nome || quiz.titulo;
-  card.appendChild(title);
-
-  if (validarPermissao('editar_quiz') || currentTab === 'excluidos') {
-    const gearMenu = document.createElement('div');
-    gearMenu.className = 'gear-menu';
-    
-    const menuOptions = document.createElement('div');
-    menuOptions.className = 'menu-options';
-    
-    if (currentTab === 'excluidos') {
-      const btnRestaurar = document.createElement('button');
-      btnRestaurar.textContent = '🔄 Restaurar';
-      btnRestaurar.onclick = (e) => {
-        e.stopPropagation();
-        restaurarQuiz(quiz);
-      };
-      
-      const btnExcluirPermanente = document.createElement('button');
-      btnExcluirPermanente.className = 'danger';
-      btnExcluirPermanente.textContent = '💀 Excluir Permanentemente';
-      btnExcluirPermanente.onclick = (e) => {
-        e.stopPropagation();
-        excluirQuizPermanentemente(quiz);
-      };
-      
-      menuOptions.appendChild(btnRestaurar);
-      menuOptions.appendChild(btnExcluirPermanente);
-    } else {
-      const btnEditar = document.createElement('button');
-      btnEditar.textContent = '✏️ Editar';
-      btnEditar.onclick = (e) => {
-        e.stopPropagation();
-        localStorage.setItem('quizParaEditar', JSON.stringify(quiz));
-        window.location.href = 'https://brainquiiz.netlify.app/painel.html';
-      };
-      
-      const btnArquivar = document.createElement('button');
-      btnArquivar.textContent = currentTab === 'ativos' ? '📁 Arquivar' : '📤 Desarquivar';
-      btnArquivar.onclick = async (e) => {
-        e.stopPropagation();
-        if (currentTab === 'ativos') {
-          await arquivarQuiz(quiz);
-        } else {
-          await desarquivarQuiz(quiz);
-        }
-      };
-      
-      const btnExcluir = document.createElement('button');
-      btnExcluir.className = 'danger';
-      btnExcluir.textContent = '🗑️ Excluir';
-      btnExcluir.onclick = (e) => {
-        e.stopPropagation();
-        excluirQuiz(quiz);
-      };
-      btnExcluir.disabled = !validarPermissao('excluir_quiz');
-      
-      menuOptions.appendChild(btnEditar);
-      menuOptions.appendChild(btnArquivar);
-      menuOptions.appendChild(btnExcluir);
-    }
-    
-    gearMenu.onclick = (e) => {
-      e.stopPropagation();
-      const isVisible = menuOptions.style.display === 'block';
-      document.querySelectorAll('.menu-options').forEach(m => m.style.display = 'none');
-      menuOptions.style.display = isVisible ? 'none' : 'block';
-    };
-    
-    card.appendChild(gearMenu);
-    card.appendChild(menuOptions);
-  }
-
-  if (currentTab === 'at<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <title>Painel Inicial - BrainQuiz</title>
+  <script src="auth.js"></script>
+  <script src="dashboard-manager.js"></script>
+  <link rel="stylesheet" href="system-styles.css">
   <style>
     body {
       background: linear-gradient(135deg, #000 0%, #1a1a2e 50%, #16213e 100%);
@@ -2398,8 +924,7 @@ function criarCardQuiz(quiz) {
       cursor: pointer;
       transition: all 0.3s ease;
     }
-    
-    .current-photo:hover {
+      .current-photo:hover {
       transform: scale(1.05);
       box-shadow: 0 8px 25px rgba(0,170,255,0.4);
     }
@@ -2519,10 +1044,10 @@ function criarCardQuiz(quiz) {
   <input type="file" id="profilePhotoInput" accept="image/*" style="display: none;">
 
 <script>
-console.log('🚀 DASHBOARD SINCRONIZADO v6.0 - 100% BACKEND REAL');
+console.log('🚀 DASHBOARD INTEGRADO COM AUTH.JS - v7.0 FINAL');
 
 // ============================================================================
-// VARIABLES GLOBAIS - SISTEMA REAL
+// VARIABLES GLOBAIS - SISTEMA INTEGRADO
 // ============================================================================
 
 let usuarioLogado = null;
@@ -2565,146 +1090,57 @@ function criarParticulas() {
 }
 
 // ============================================================================
-// SISTEMA DE AUTENTICAÇÃO REAL - 100% BACKEND
+// SISTEMA DE AUTENTICAÇÃO INTEGRADO
 // ============================================================================
 
 async function verificarUsuarioLogado() {
   console.log('🔍 Verificando sessão do usuário...');
   
   try {
-    const response = await fetch('https://brainquiz-backend.onrender.com/usuario', {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    });
-    
-    console.log('📡 Status da resposta:', response.status);
-    
-    if (response.ok) {
-      const data = await response.json();
-      console.log('📋 Dados recebidos:', data);
-      
-      if (data.success && data.usuario) {
-        usuarioLogado = data.usuario;
-        console.log('✅ Usuário autenticado:', usuarioLogado.usuario);
-        return true;
-      }
+    const usuario = await authManager.getUsuarioAtual();
+    if (usuario) {
+      usuarioLogado = usuario;
+      console.log('✅ Usuário autenticado:', usuarioLogado.usuario);
+      return true;
     }
     
     console.log('❌ Usuário não autenticado, redirecionando...');
-    window.location.href = 'https://brainquiiz.netlify.app/';
+    window.location.href = 'https://brainquiiz.netlify.app/index.html';
     return false;
     
   } catch (error) {
     console.error('❌ Erro ao verificar sessão:', error);
-    window.location.href = 'https://brainquiiz.netlify.app/';
+    window.location.href = 'https://brainquiiz.netlify.app/index.html';
     return false;
   }
 }
 
 // ============================================================================
-// CARREGAMENTO DE DADOS REAIS DO BACKEND - 100% REAL
+// CARREGAMENTO DE DADOS INTEGRADO
 // ============================================================================
 
 async function carregarDadosReais() {
-  console.log('📡 Carregando dados reais do backend...');
+  console.log('📡 Carregando dados do sistema...');
   
   try {
-    // Carregar usuários
-    const usuariosResponse = await fetch('https://brainquiz-backend.onrender.com/api/usuarios', {
-      method: 'GET',
-      credentials: 'include'
+    // Usar dashboardManager para carregar dados
+    await dashboardManager.carregarTodosDados();
+    
+    // Atualizar variáveis locais para compatibilidade
+    users = dashboardManager.dados.usuarios || [];
+    cadastros = dashboardManager.dados.cadastros || [];
+    quizzes = dashboardManager.dados.quizzes || [];
+    quizzesArquivados = dashboardManager.dados.arquivados || [];
+    quizzesExcluidos = dashboardManager.dados.excluidos || [];
+    pdfs = dashboardManager.dados.pdfs || [];
+    pdfsExcluidos = dashboardManager.dados.pdfsExcluidos || [];
+    
+    console.log('✅ Dados carregados:', {
+      usuarios: users.length,
+      cadastros: cadastros.length,
+      quizzes: quizzes.length,
+      pdfs: pdfs.length
     });
-    
-    if (usuariosResponse.ok) {
-      const usuariosData = await usuariosResponse.json();
-      users = usuariosData.usuarios || [];
-      console.log('✅ Usuários carregados:', users.length);
-    }
-    
-    // Carregar cadastros pendentes
-    const cadastrosResponse = await fetch('https://brainquiz-backend.onrender.com/api/cadastros', {
-      method: 'GET',
-      credentials: 'include'
-    });
-    
-    if (cadastrosResponse.ok) {
-      const cadastrosData = await cadastrosResponse.json();
-      cadastros = cadastrosData.cadastros || [];
-      console.log('✅ Cadastros pendentes:', cadastros.length);
-    }
-    
-    // Carregar quizzes ativos
-    const quizzesResponse = await fetch('https://brainquiz-backend.onrender.com/api/quizzes', {
-      method: 'GET',
-      credentials: 'include'
-    });
-    
-    if (quizzesResponse.ok) {
-      const quizzesData = await quizzesResponse.json();
-      quizzes = quizzesData.quizzes || [];
-      console.log('✅ Quizzes ativos:', quizzes.length);
-    }
-    
-    // Carregar quizzes arquivados (só admin/moderador)
-    if (usuarioLogado.tipo === 'administrador' || usuarioLogado.tipo === 'moderador') {
-      try {
-        const arquivadosResponse = await fetch('https://brainquiz-backend.onrender.com/api/quizzes/arquivados', {
-          method: 'GET',
-          credentials: 'include'
-        });
-        
-        if (arquivadosResponse.ok) {
-          const arquivadosData = await arquivadosResponse.json();
-          quizzesArquivados = arquivadosData.quizzes || [];
-          console.log('✅ Quizzes arquivados:', quizzesArquivados.length);
-        }
-      } catch (error) {
-        console.log('⚠️ Endpoint de arquivados não disponível');
-        quizzesArquivados = [];
-      }
-    }
-    
-    // Carregar quizzes excluídos (só admin)
-    if (usuarioLogado.tipo === 'administrador') {
-      try {
-        const excluidosResponse = await fetch('https://brainquiz-backend.onrender.com/api/quizzes/excluidos', {
-          method: 'GET',
-          credentials: 'include'
-        });
-        
-        if (excluidosResponse.ok) {
-          const excluidosData = await excluidosResponse.json();
-          quizzesExcluidos = excluidosData.quizzes || [];
-          console.log('✅ Quizzes excluídos:', quizzesExcluidos.length);
-        }
-      } catch (error) {
-        console.log('⚠️ Endpoint de excluídos não disponível');
-        quizzesExcluidos = [];
-      }
-    }
-    
-    // Carregar PDFs
-    try {
-      const pdfsResponse = await fetch('https://brainquiz-backend.onrender.com/api/pdfs', {
-        method: 'GET',
-        credentials: 'include'
-      });
-      
-      if (pdfsResponse.ok) {
-        const pdfsData = await pdfsResponse.json();
-        pdfs = pdfsData.pdfs || [];
-        console.log('✅ PDFs carregados:', pdfs.length);
-      }
-    } catch (error) {
-      console.log('⚠️ Endpoint de PDFs não disponível');
-      pdfs = [];
-    }
-    
-    console.log('✅ Todos os dados carregados com sucesso');
     
   } catch (error) {
     console.error('❌ Erro ao carregar dados:', error);
@@ -2731,26 +1167,11 @@ function configurarBotoesPrincipais() {
     createQuizBtn.style.display = 'none';
   }
 
-  // BOTÃO SAIR - 100% BACKEND REAL
+  // BOTÃO SAIR INTEGRADO
   exitBtn.onclick = async () => {
     if (confirm('Deseja realmente sair do sistema?')) {
       console.log('👋 Fazendo logout...');
-      
-      try {
-        const response = await fetch('https://brainquiz-backend.onrender.com/logout', {
-          method: 'POST',
-          credentials: 'include'
-        });
-        
-        if (response.ok) {
-          console.log('✅ Logout realizado no backend');
-        }
-      } catch (error) {
-        console.error('⚠️ Erro no logout backend:', error);
-      }
-      
-      localStorage.clear();
-      window.location.href = 'https://brainquiiz.netlify.app/';
+      authManager.logout();
     }
   };
 }
@@ -3031,16 +1452,14 @@ function exibirCalendario() {
 
   quizzesContainer.appendChild(container);
 }
-
-// ============================================================================
-// FUNÇÕES DE CADASTROS PENDENTES - BACKEND REAL (CONTINUAÇÃO)
+    // ============================================================================
+// FUNÇÕES DE CADASTROS PENDENTES - BACKEND REAL
 // ============================================================================
 
 async function aprovarCadastro(cadastro) {
   try {
-    const response = await fetch(`https://brainquiz-backend.onrender.com/api/cadastros/${cadastro.id}/aprovar`, {
-      method: 'POST',
-      credentials: 'include'
+    const response = await authManager.makeAuthenticatedRequest(`https://brainquiz-backend.onrender.com/api/cadastros/${cadastro.id}/aprovar`, {
+      method: 'POST'
     });
     
     const data = await response.json();
@@ -3067,9 +1486,8 @@ async function aprovarCadastro(cadastro) {
 async function rejeitarCadastro(cadastro) {
   if (confirm(`Deseja rejeitar o cadastro de ${cadastro.usuario}?`)) {
     try {
-      const response = await fetch(`https://brainquiz-backend.onrender.com/api/cadastros/${cadastro.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
+      const response = await authManager.makeAuthenticatedRequest(`https://brainquiz-backend.onrender.com/api/cadastros/${cadastro.id}`, {
+        method: 'DELETE'
       });
       
       const data = await response.json();
@@ -3099,9 +1517,8 @@ async function rejeitarCadastro(cadastro) {
 async function arquivarQuiz(quiz) {
   if (confirm(`Deseja arquivar o quiz "${quiz.nome || quiz.titulo}"?`)) {
     try {
-      const response = await fetch(`https://brainquiz-backend.onrender.com/api/quizzes/${quiz.id}/arquivar`, {
-        method: 'PUT',
-        credentials: 'include'
+      const response = await authManager.makeAuthenticatedRequest(`https://brainquiz-backend.onrender.com/api/quizzes/${quiz.id}/arquivar`, {
+        method: 'PUT'
       });
       
       const data = await response.json();
@@ -3129,9 +1546,8 @@ async function arquivarQuiz(quiz) {
 async function desarquivarQuiz(quiz) {
   if (confirm(`Deseja desarquivar o quiz "${quiz.nome || quiz.titulo}"?`)) {
     try {
-      const response = await fetch(`https://brainquiz-backend.onrender.com/api/quizzes/${quiz.id}/desarquivar`, {
-        method: 'PUT',
-        credentials: 'include'
+      const response = await authManager.makeAuthenticatedRequest(`https://brainquiz-backend.onrender.com/api/quizzes/${quiz.id}/desarquivar`, {
+        method: 'PUT'
       });
       
       const data = await response.json();
@@ -3160,9 +1576,8 @@ async function desarquivarQuiz(quiz) {
 async function excluirQuiz(quiz) {
   if (confirm(`Deseja realmente excluir o quiz "${quiz.nome || quiz.titulo}"? Ele será movido para a lixeira.`)) {
     try {
-      const response = await fetch(`https://brainquiz-backend.onrender.com/api/quizzes/${quiz.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
+      const response = await authManager.makeAuthenticatedRequest(`https://brainquiz-backend.onrender.com/api/quizzes/${quiz.id}`, {
+        method: 'DELETE'
       });
       
       const data = await response.json();
@@ -3203,10 +1618,8 @@ async function excluirQuiz(quiz) {
 async function restaurarQuiz(quiz) {
   if (confirm(`Deseja restaurar o quiz "${quiz.nome || quiz.titulo}" para os quizzes ativos?`)) {
     try {
-      const response = await fetch('https://brainquiz-backend.onrender.com/alterar-status-quiz', {
+      const response = await authManager.makeAuthenticatedRequest('https://brainquiz-backend.onrender.com/alterar-status-quiz', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           id: quiz.id,
           status: 'ativo'
@@ -3238,8 +1651,6 @@ async function restaurarQuiz(quiz) {
 
 async function excluirQuizPermanentemente(quiz) {
   if (confirm(`⚠️ ATENÇÃO: Deseja excluir PERMANENTEMENTE o quiz "${quiz.nome || quiz.titulo}"? Esta ação NÃO PODE ser desfeita!`)) {
-    // Para exclusão permanente, implementar no backend se necessário
-    // Por enquanto, apenas remove do array local
     const index = quizzesExcluidos.findIndex(q => q.id === quiz.id);
     if (index !== -1) {
       quizzesExcluidos.splice(index, 1);
@@ -3290,10 +1701,8 @@ async function saveUserEdit() {
   
   try {
     if (currentEditingUser.tipo !== tipo) {
-      const roleResponse = await fetch('https://brainquiz-backend.onrender.com/alterar-role', {
+      const roleResponse = await authManager.makeAuthenticatedRequest('https://brainquiz-backend.onrender.com/alterar-role', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           usuario: currentEditingUser.usuario,
           role: tipo
@@ -3307,10 +1716,8 @@ async function saveUserEdit() {
       }
     }
     
-    const response = await fetch(`https://brainquiz-backend.onrender.com/api/usuarios/${currentEditingUser.usuario}`, {
+    const response = await authManager.makeAuthenticatedRequest(`https://brainquiz-backend.onrender.com/api/usuarios/${currentEditingUser.usuario}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({
         nome,
         sobrenome,
@@ -3379,10 +1786,8 @@ async function changeUserPassword() {
   }
   
   try {
-    const response = await fetch('https://brainquiz-backend.onrender.com/alterar-senha', {
+    const response = await authManager.makeAuthenticatedRequest('https://brainquiz-backend.onrender.com/alterar-senha', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({
         usuario: currentEditingUser.usuario,
         novaSenha: newPassword
@@ -3416,10 +1821,8 @@ async function deleteUser(user) {
   
   if (confirm(`Deseja realmente excluir o usuário ${user.usuario}? Esta ação não pode ser desfeita.`)) {
     try {
-      const response = await fetch('https://brainquiz-backend.onrender.com/excluir-usuario', {
+      const response = await authManager.makeAuthenticatedRequest('https://brainquiz-backend.onrender.com/excluir-usuario', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           usuario: user.usuario
         })
@@ -3454,10 +1857,8 @@ async function promoteUser(user) {
   const newType = user.tipo === 'aluno' ? 'moderador' : 'administrador';
   if (confirm(`Deseja promover ${user.usuario} para ${newType}?`)) {
     try {
-      const response = await fetch('https://brainquiz-backend.onrender.com/alterar-role', {
+      const response = await authManager.makeAuthenticatedRequest('https://brainquiz-backend.onrender.com/alterar-role', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           usuario: user.usuario,
           role: newType
@@ -3493,10 +1894,8 @@ async function demoteUser(user) {
   const newType = user.tipo === 'administrador' ? 'moderador' : 'aluno';
   if (confirm(`Deseja rebaixar ${user.usuario} para ${newType}?`)) {
     try {
-      const response = await fetch('https://brainquiz-backend.onrender.com/alterar-role', {
+      const response = await authManager.makeAuthenticatedRequest('https://brainquiz-backend.onrender.com/alterar-role', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           usuario: user.usuario,
           role: newType
@@ -3549,10 +1948,8 @@ async function handleFileUpload(event) {
   const reader = new FileReader();
   reader.onload = async function(e) {
     try {
-      const response = await fetch('https://brainquiz-backend.onrender.com/upload-pdf', {
+      const response = await authManager.makeAuthenticatedRequest('https://brainquiz-backend.onrender.com/upload-pdf', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           nome: file.name,
           base64: e.target.result
@@ -3588,9 +1985,8 @@ async function togglePdfLock(pdf) {
   }
   
   try {
-    const response = await fetch(`https://brainquiz-backend.onrender.com/api/pdfs/${pdf.id}/toggle-lock`, {
-      method: 'PUT',
-      credentials: 'include'
+    const response = await authManager.makeAuthenticatedRequest(`https://brainquiz-backend.onrender.com/api/pdfs/${pdf.id}/toggle-lock`, {
+      method: 'PUT'
     });
     
     const data = await response.json();
@@ -3651,9 +2047,8 @@ async function deletePdf(pdf) {
   
   if (confirm(`Deseja realmente excluir o PDF "${pdf.nome}"? Ele será movido para a lixeira.`)) {
     try {
-      const response = await fetch(`https://brainquiz-backend.onrender.com/api/pdfs/${pdf.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
+      const response = await authManager.makeAuthenticatedRequest(`https://brainquiz-backend.onrender.com/api/pdfs/${pdf.id}`, {
+        method: 'DELETE'
       });
       
       const data = await response.json();
@@ -3706,8 +2101,7 @@ function excluirPdfPermanentemente(pdf) {
     }
   }
 }
-
-// ============================================================================
+    // ============================================================================
 // FUNÇÕES DE MODAL E INTERFACE
 // ============================================================================
 
@@ -4474,10 +2868,8 @@ async function confirmProfileSave() {
   }
   
   try {
-    const response = await fetch('https://brainquiz-backend.onrender.com/api/perfil', {
+    const response = await authManager.makeAuthenticatedRequest('https://brainquiz-backend.onrender.com/api/perfil', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({
         ...pendingProfileData,
         senhaAtual: currentPassword
@@ -4521,19 +2913,18 @@ function mostrarMensagemSucesso(mensagem) {
 function mostrarLoading(mensagem = 'Carregando...') {
   quizzesContainer.innerHTML = `<div class="loading">${mensagem}</div>`;
 }
-
 function esconderLoading() {
   const loading = document.querySelector('.loading');
   if (loading) loading.remove();
 }
 
 // ============================================================================
-// INICIALIZAÇÃO PRINCIPAL - 100% BACKEND REAL
+// INICIALIZAÇÃO PRINCIPAL - INTEGRADA COM AUTH.JS
 // ============================================================================
 
 async function inicializarSistema() {
   try {
-    console.log('🚀 Iniciando Dashboard 100% Backend Real...');
+    console.log('🚀 Iniciando Dashboard Integrado...');
     
     mostrarLoading('Verificando autenticação...');
     const usuarioValido = await verificarUsuarioLogado();
@@ -4579,14 +2970,30 @@ async function inicializarSistema() {
 document.addEventListener('DOMContentLoaded', () => {
   console.log('📄 DOM carregado, iniciando sistema...');
   
-  const fileInput = document.getElementById('fileInput');
-  fileInput.addEventListener('change', handleFileUpload);
+  // Aguardar carregamento dos scripts externos
+  const aguardarScripts = () => {
+    return new Promise((resolve) => {
+      const verificarScripts = () => {
+        if (typeof authManager !== 'undefined' && typeof dashboardManager !== 'undefined') {
+          resolve();
+        } else {
+          setTimeout(verificarScripts, 100);
+        }
+      };
+      verificarScripts();
+    });
+  };
   
-  const profilePhotoInput = document.getElementById('profilePhotoInput');
-  profilePhotoInput.addEventListener('change', handleProfilePhotoUpload);
+  aguardarScripts().then(() => {
+    const fileInput = document.getElementById('fileInput');
+    fileInput.addEventListener('change', handleFileUpload);
+    
+    const profilePhotoInput = document.getElementById('profilePhotoInput');
+    profilePhotoInput.addEventListener('change', handleProfilePhotoUpload);
 
-  criarParticulas();
-  inicializarSistema();
+    criarParticulas();
+    inicializarSistema();
+  });
 });
 
 document.addEventListener('click', (e) => {
@@ -4597,8 +3004,10 @@ document.addEventListener('click', (e) => {
   }
 });
 
-console.log('🎯 DASHBOARD 100% BACKEND REAL CARREGADO - v6.0 FINAL!');
+console.log('🎯 DASHBOARD INTEGRADO CARREGADO - v7.0 FINAL!');
 
 </script>
 </body>
 </html>
+
+    
