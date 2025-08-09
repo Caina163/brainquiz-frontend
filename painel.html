@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <title>Painel - Criar Quiz</title>
+  <script src="auth.js"></script>
+  <link rel="stylesheet" href="system-styles.css">
   <style>
     body {
       background-color: #000;
@@ -425,67 +427,19 @@
     let usuarioLogado = null;
 
     // ============================================================================
-    // VERIFICAÇÃO DE AUTENTICAÇÃO MELHORADA
+    // VERIFICAÇÃO DE AUTENTICAÇÃO INTEGRADA
     // ============================================================================
 
     async function verificarAutenticacao() {
       try {
-        console.log('🔍 Verificando autenticação...');
-        
-        // Primeiro, tentar obter dados do localStorage
-        const usuarioLocal = localStorage.getItem('usuarioLogado');
-        if (usuarioLocal) {
-          try {
-            usuarioLogado = JSON.parse(usuarioLocal);
-            console.log('✅ Usuário encontrado no localStorage:', usuarioLogado.usuario);
-            
-            // Tentar validar no servidor (sem bloquear se falhar)
-            try {
-              const response = await fetch('https://brainquiz-backend.onrender.com/usuario', {
-                method: 'GET',
-                credentials: 'include'
-              });
-              
-              if (response.ok) {
-                const data = await response.json();
-                if (data.success && data.usuario) {
-                  usuarioLogado = data.usuario;
-                  console.log('✅ Sessão validada no servidor');
-                }
-              }
-            } catch (serverError) {
-              console.log('⚠️ Servidor indisponível, usando dados locais');
-            }
-            
-            return usuarioLogado;
-          } catch (e) {
-            console.error('❌ Erro ao parsear localStorage:', e);
-            localStorage.removeItem('usuarioLogado');
-          }
+        const usuario = await authManager.getUsuarioAtual();
+        if (usuario) {
+          console.log('✅ Usuário autenticado:', usuario.usuario);
+          return usuario;
         }
-        
-        // Se não tem dados locais, tentar servidor
-        const response = await fetch('https://brainquiz-backend.onrender.com/usuario', {
-          method: 'GET',
-          credentials: 'include'
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.usuario) {
-            usuarioLogado = data.usuario;
-            // Salvar no localStorage para próximas vezes
-            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
-            console.log('✅ Usuário autenticado via servidor:', usuarioLogado.usuario);
-            return usuarioLogado;
-          }
-        }
-        
-        console.log('❌ Nenhuma sessão válida encontrada');
         return false;
-        
       } catch (error) {
-        console.error('❌ Erro ao verificar sessão:', error);
+        console.error('❌ Erro ao verificar autenticação:', error);
         return false;
       }
     }
@@ -497,10 +451,10 @@
           <p>Você precisa estar logado para acessar esta página.</p>
           <p>Sua sessão pode ter expirado ou as credenciais são inválidas.</p>
           <div>
-            <button onclick="window.location.href='index.html'">
+            <button onclick="window.location.href='https://brainquiiz.netlify.app/index.html'">
               🔑 Fazer Login
             </button>
-            <button onclick="window.location.href='dashboard.html'" class="secondary">
+            <button onclick="window.location.href='https://brainquiiz.netlify.app/dashboard.html'" class="secondary">
               ← Voltar ao Dashboard
             </button>
           </div>
@@ -518,7 +472,7 @@
             <button onclick="window.location.reload()">
               🔄 Tentar Novamente
             </button>
-            <button onclick="window.location.href='dashboard.html'" class="secondary">
+            <button onclick="window.location.href='https://brainquiiz.netlify.app/dashboard.html'" class="secondary">
               ← Voltar ao Dashboard
             </button>
           </div>
@@ -869,43 +823,8 @@
     });
 
     // ============================================================================
-    // FUNÇÃO PRINCIPAL DE SALVAMENTO - CORRIGIDA COM FALLBACK LOCAL
+    // FUNÇÃO PRINCIPAL DE SALVAMENTO
     // ============================================================================
-
-    async function salvarQuizLocal(quizParaSalvar) {
-      try {
-        console.log('💾 Salvando quiz localmente...');
-        
-        // Gerar ID único para o quiz
-        const quizId = 'quiz_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        
-        // Preparar dados para localStorage
-        const quizCompleto = {
-          id: quizId,
-          ...quizParaSalvar,
-          status: 'ativo',
-          criadoPor: usuarioLogado ? usuarioLogado.usuario : 'usuario',
-          criadoEm: new Date().toISOString(),
-          editadoEm: new Date().toISOString()
-        };
-        
-        // Obter quizzes existentes
-        const quizzesExistentes = JSON.parse(localStorage.getItem('quizzes') || '[]');
-        
-        // Adicionar novo quiz
-        quizzesExistentes.push(quizCompleto);
-        
-        // Salvar no localStorage
-        localStorage.setItem('quizzes', JSON.stringify(quizzesExistentes));
-        
-        console.log('✅ Quiz salvo localmente com sucesso!');
-        return { success: true, quizId: quizId };
-        
-      } catch (error) {
-        console.error('❌ Erro ao salvar quiz localmente:', error);
-        return { success: false, error: error.message };
-      }
-    }
 
     saveQuizBtn.addEventListener('click', async () => {
       try {
@@ -942,261 +861,251 @@
             carregarQuestaoAtual();
             return;
           }
-          
           if (!p.alternativas[0] || p.alternativas[0].trim() === '') {
-            alert(`A alternativa correta da pergunta ${i + 1} não pode estar vazia.`);
-            currentQuestionIndex = i;
-            carregarQuestaoAtual();
-            return;
-          }
-          
-          const alternativasPreenchidas = p.alternativas.filter(alt => alt && alt.trim() !== '');
-          if (alternativasPreenchidas.length < 2) {
-            alert(`A pergunta ${i + 1} deve ter pelo menos uma alternativa além da resposta correta.`);
-            currentQuestionIndex = i;
-            carregarQuestaoAtual();
-            return;
-          }
-        }
+           alert(`A alternativa correta da pergunta ${i + 1} não pode estar vazia.`);
+           currentQuestionIndex = i;
+           carregarQuestaoAtual();
+           return;
+         }
+         
+         const alternativasPreenchidas = p.alternativas.filter(alt => alt && alt.trim() !== '');
+         if (alternativasPreenchidas.length < 2) {
+           alert(`A pergunta ${i + 1} deve ter pelo menos uma alternativa além da resposta correta.`);
+           currentQuestionIndex = i;
+           carregarQuestaoAtual();
+           return;
+         }
+       }
 
-        // ✅ PREPARAR DADOS PARA SALVAMENTO
-        const quizParaSalvar = {
-          titulo: quizData.titulo,
-          nome: quizData.titulo, // Campo que o dashboard espera
-          imagem: quizData.imagem,
-          imagemBase64: quizData.imagem, // Compatibilidade
-          perguntas: quizData.perguntas.map(p => ({
-            texto: p.texto.trim(),
-            imagem: p.imagem,
-            alternativas: p.alternativas.filter(alt => alt && alt.trim() !== ''),
-            resposta_certa: 0 // Sempre primeira alternativa
-          })),
-          configuracoes: {
-            criadoEm: new Date().toISOString(),
-            editadoEm: new Date().toISOString()
-          }
-        };
+       // Preparar dados para salvamento
+       const quizParaSalvar = {
+         titulo: quizData.titulo,
+         nome: quizData.titulo,
+         imagem: quizData.imagem,
+         imagemBase64: quizData.imagem,
+         perguntas: quizData.perguntas.map(p => ({
+           texto: p.texto.trim(),
+           imagem: p.imagem,
+           alternativas: p.alternativas.filter(alt => alt && alt.trim() !== ''),
+           resposta_certa: 0
+         })),
+         configuracoes: {
+           criadoEm: new Date().toISOString(),
+           editadoEm: new Date().toISOString()
+         }
+       };
 
-        console.log('📤 Preparando para salvar quiz:', quizParaSalvar);
+       console.log('📤 Preparando para salvar quiz:', quizParaSalvar);
 
-        let salvamentoSucesso = false;
-        let erroBackend = null;
+       let salvamentoSucesso = false;
 
-        // ✅ TENTAR SALVAR NO BACKEND PRIMEIRO
-        try {
-          console.log('🌐 Tentando salvar no backend...');
-          
-          const response = await fetch('https://brainquiz-backend.onrender.com/api/quizzes', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            credentials: 'include',
-            body: JSON.stringify(quizParaSalvar)
-          });
+       // Tentar salvar no backend
+       try {
+         console.log('🌐 Tentando salvar no backend...');
+         
+         const response = await authManager.makeAuthenticatedRequest('https://brainquiz-backend.onrender.com/api/quizzes', {
+           method: 'POST',
+           body: JSON.stringify(quizParaSalvar)
+         });
 
-          const result = await response.json();
+         if (response.ok) {
+           const result = await response.json();
+           if (result.success) {
+             console.log('✅ Quiz salvo com sucesso no backend:', result);
+             salvamentoSucesso = true;
+           }
+         }
+       } catch (error) {
+         console.error('❌ Erro de conexão com backend:', error);
+       }
 
-          if (response.ok && result.success) {
-            console.log('✅ Quiz salvo com sucesso no backend:', result);
-            salvamentoSucesso = true;
-          } else {
-            erroBackend = result.message || 'Erro desconhecido no backend';
-            console.error('❌ Erro do backend:', erroBackend);
-          }
+       // Fallback: salvar localmente se backend falhou
+       if (!salvamentoSucesso) {
+         console.log('⚠️ Backend indisponível, salvando localmente...');
+         
+         const quizId = 'quiz_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+         const quizCompleto = {
+           id: quizId,
+           ...quizParaSalvar,
+           status: 'ativo',
+           criadoPor: usuarioLogado ? usuarioLogado.usuario : 'usuario',
+           criadoEm: new Date().toISOString(),
+           editadoEm: new Date().toISOString()
+         };
+         
+         const quizzesExistentes = JSON.parse(localStorage.getItem('quizzes') || '[]');
+         quizzesExistentes.push(quizCompleto);
+         localStorage.setItem('quizzes', JSON.stringify(quizzesExistentes));
+         
+         console.log('✅ Quiz salvo localmente com sucesso!');
+         salvamentoSucesso = true;
+         
+         alert(`✅ Quiz salvo com sucesso!\n\n⚠️ Aviso: O quiz foi salvo localmente pois o servidor está indisponível.\nEle será sincronizado automaticamente quando a conexão for restabelecida.`);
+       }
 
-        } catch (error) {
-          erroBackend = error.message;
-          console.error('❌ Erro de conexão com backend:', error);
-        }
+       if (salvamentoSucesso) {
+         questionsStep.style.display = 'none';
+         successMessage.style.display = 'block';
+         
+         setTimeout(() => {
+           voltarParaDashboard();
+         }, 2000);
+       }
 
-        // ✅ SE BACKEND FALHOU, SALVAR LOCALMENTE
-        if (!salvamentoSucesso) {
-          console.log('⚠️ Backend indisponível, salvando localmente...');
-          
-          const resultadoLocal = await salvarQuizLocal(quizParaSalvar);
-          
-          if (resultadoLocal.success) {
-            console.log('✅ Quiz salvo localmente com sucesso!');
-            salvamentoSucesso = true;
-            
-            // Mostrar aviso que foi salvo localmente
-            alert(`✅ Quiz salvo com sucesso!\n\n⚠️ Aviso: O quiz foi salvo localmente pois o servidor está indisponível.\nEle será sincronizado automaticamente quando a conexão for restabelecida.`);
-          } else {
-            console.error('❌ Falha ao salvar localmente:', resultadoLocal.error);
-            alert('❌ Erro ao salvar quiz: ' + resultadoLocal.error);
-            return;
-          }
-        }
+     } catch (error) {
+       console.error('❌ Erro geral ao salvar quiz:', error);
+       alert('❌ Erro inesperado ao salvar quiz. Tente novamente.');
+     } finally {
+       saveQuizBtn.classList.remove('loading');
+       saveQuizBtn.textContent = 'Salvar Quiz';
+     }
+   });
 
-        // ✅ SE SALVAMENTO FOI BEM-SUCEDIDO
-        if (salvamentoSucesso) {
-          // Mostrar sucesso e redirecionar
-          questionsStep.style.display = 'none';
-          successMessage.style.display = 'block';
-          
-          setTimeout(() => {
-            voltarParaDashboard();
-          }, 2000);
-        }
+   // ============================================================================
+   // FUNÇÕES DE CARREGAMENTO PARA EDIÇÃO
+   // ============================================================================
 
-      } catch (error) {
-        console.error('❌ Erro geral ao salvar quiz:', error);
-        alert('❌ Erro inesperado ao salvar quiz. Tente novamente.');
-      } finally {
-        saveQuizBtn.classList.remove('loading');
-        saveQuizBtn.textContent = 'Salvar Quiz';
-      }
-    });
+   function getUrlParam(param) {
+     const urlParams = new URLSearchParams(window.location.search);
+     return urlParams.get(param);
+   }
 
-    // ============================================================================
-    // FUNÇÕES DE CARREGAMENTO PARA EDIÇÃO
-    // ============================================================================
+   async function carregarQuizParaEdicao(id) {
+     try {
+       console.log('🔧 Carregando quiz para edição, ID:', id);
+       
+       // Tentar carregar do backend primeiro
+       try {
+         const response = await authManager.makeAuthenticatedRequest(`https://brainquiz-backend.onrender.com/api/quizzes/${id}`);
+         
+         if (response.ok) {
+           const data = await response.json();
+           if (data.success && data.quiz) {
+             console.log('✅ Quiz carregado do backend:', data.quiz);
+             preencherFormularioComQuiz(data.quiz, id);
+             return;
+           }
+         }
+       } catch (backendError) {
+         console.log('⚠️ Backend indisponível, tentando carregar localmente...');
+       }
+       
+       // Fallback: carregar do localStorage
+       const quizzesLocais = JSON.parse(localStorage.getItem('quizzes') || '[]');
+       const quizLocal = quizzesLocais.find(q => q.id === id);
+       
+       if (quizLocal) {
+         console.log('✅ Quiz carregado do localStorage:', quizLocal);
+         preencherFormularioComQuiz(quizLocal, id);
+         return;
+       }
+       
+       alert('Quiz não encontrado!');
+       voltarParaDashboard();
+       
+     } catch (error) {
+       console.error('❌ Erro ao carregar quiz para edição:', error);
+       alert('Erro ao carregar quiz para edição.');
+       voltarParaDashboard();
+     }
+   }
 
-    function getUrlParam(param) {
-      const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get(param);
-    }
+   function preencherFormularioComQuiz(quiz, id) {
+     quizData = {
+       titulo: quiz.titulo || quiz.nome || '',
+       imagem: quiz.imagem || quiz.imagemBase64 || null,
+       perguntas: quiz.perguntas || []
+     };
+     
+     editingQuizId = id;
 
-    async function carregarQuizParaEdicao(id) {
-      try {
-        console.log('🔧 Carregando quiz para edição, ID:', id);
-        
-        // ✅ TENTAR CARREGAR DO BACKEND PRIMEIRO
-        try {
-          const response = await fetch(`https://brainquiz-backend.onrender.com/api/quizzes/${id}`, {
-            method: 'GET',
-            credentials: 'include'
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.quiz) {
-              console.log('✅ Quiz carregado do backend:', data.quiz);
-              preencherFormularioComQuiz(data.quiz, id);
-              return;
-            }
-          }
-        } catch (backendError) {
-          console.log('⚠️ Backend indisponível, tentando carregar localmente...');
-        }
-        
-        // ✅ FALLBACK: CARREGAR DO LOCALSTORAGE
-        const quizzesLocais = JSON.parse(localStorage.getItem('quizzes') || '[]');
-        const quizLocal = quizzesLocais.find(q => q.id === id);
-        
-        if (quizLocal) {
-          console.log('✅ Quiz carregado do localStorage:', quizLocal);
-          preencherFormularioComQuiz(quizLocal, id);
-          return;
-        }
-        
-        alert('Quiz não encontrado!');
-        voltarParaDashboard();
-        
-      } catch (error) {
-        console.error('❌ Erro ao carregar quiz para edição:', error);
-        alert('Erro ao carregar quiz para edição.');
-        voltarParaDashboard();
-      }
-    }
+     // Preencher dados do quiz
+     document.getElementById('quizTitle').value = quizData.titulo;
+     if (quizData.imagem) {
+       mostrarPreviewImagemBase64(quizData.imagem, quizImagePreview, true);
+     }
 
-    function preencherFormularioComQuiz(quiz, id) {
-      quizData = {
-        titulo: quiz.titulo || quiz.nome || '',
-        imagem: quiz.imagem || quiz.imagemBase64 || null,
-        perguntas: quiz.perguntas || []
-      };
-      
-      editingQuizId = id;
+     // Ir direto para a etapa de perguntas
+     quizInfoStep.style.display = 'none';
+     questionsStep.style.display = 'block';
 
-      // Preencher dados do quiz
-      document.getElementById('quizTitle').value = quizData.titulo;
-      if (quizData.imagem) {
-        mostrarPreviewImagemBase64(quizData.imagem, quizImagePreview, true);
-      }
+     // Se não tiver perguntas, criar uma vazia
+     if (!quizData.perguntas || quizData.perguntas.length === 0) {
+       quizData.perguntas = [{
+         texto: '',
+         imagem: null,
+         alternativas: ['', '', ''],
+         resposta_certa: 0
+       }];
+     }
 
-      // Ir direto para a etapa de perguntas
-      quizInfoStep.style.display = 'none';
-      questionsStep.style.display = 'block';
+     criarBotoesQuestoes();
+     carregarQuestaoAtual();
+     
+     console.log('✅ Formulário preenchido com dados do quiz');
+   }
 
-      // Se não tiver perguntas, criar uma vazia
-      if (!quizData.perguntas || quizData.perguntas.length === 0) {
-        quizData.perguntas = [{
-          texto: '',
-          imagem: null,
-          alternativas: ['', '', ''],
-          resposta_certa: 0
-        }];
-      }
+   // ============================================================================
+   // FUNÇÕES DE NAVEGAÇÃO
+   // ============================================================================
 
-      criarBotoesQuestoes();
-      carregarQuestaoAtual();
-      
-      console.log('✅ Formulário preenchido com dados do quiz');
-    }
+   function voltarParaDashboard() {
+     console.log('🔄 Redirecionando para dashboard...');
+     window.location.href = 'https://brainquiiz.netlify.app/dashboard.html';
+   }
 
-    // ============================================================================
-    // FUNÇÕES DE NAVEGAÇÃO - CORRIGIDAS
-    // ============================================================================
+   backToStart.addEventListener('click', voltarParaDashboard);
+   backToStart.addEventListener('keydown', e => {
+     if (e.key === 'Enter' || e.key === ' ') {
+       voltarParaDashboard();
+     }
+   });
 
-    function voltarParaDashboard() {
-      console.log('🔄 Redirecionando para dashboard...');
-      window.location.href = 'dashboard.html';
-    }
+   // ============================================================================
+   // INICIALIZAÇÃO
+   // ============================================================================
 
-    backToStart.addEventListener('click', voltarParaDashboard);
-    backToStart.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        voltarParaDashboard();
-      }
-    });
+   window.onload = async function() {
+     console.log('🚀 Inicializando Painel Quiz CORRIGIDO - FINAL...');
+     
+     try {
+       // Verificar autenticação
+       const usuario = await verificarAutenticacao();
+       if (!usuario) {
+         console.log('❌ Usuário não autenticado');
+         mostrarErroAutenticacao();
+         return;
+       }
+       
+       console.log('✅ Usuário autenticado:', usuario.usuario);
+       usuarioLogado = usuario;
+       
+       // Verificar se está editando um quiz
+       const idEdit = getUrlParam('id');
+       if (idEdit !== null) {
+         console.log('🔧 Modo edição - ID:', idEdit);
+         await carregarQuizParaEdicao(idEdit);
+       } else {
+         console.log('📝 Modo criação - novo quiz');
+       }
+       
+       console.log('✅ Painel inicializado com sucesso!');
+       
+     } catch (error) {
+       console.error('❌ Erro na inicialização:', error);
+       mostrarErroSistema(error.message);
+     }
+   };
 
-    // ============================================================================
-    // INICIALIZAÇÃO CORRIGIDA COM MELHOR TRATAMENTO DE AUTENTICAÇÃO
-    // ============================================================================
+   // ============================================================================
+   // FUNÇÕES GLOBAIS
+   // ============================================================================
 
-    window.onload = async function() {
-      console.log('🚀 Inicializando Painel Quiz CORRIGIDO - FINAL...');
-      
-      try {
-        // ✅ VERIFICAR AUTENTICAÇÃO COM FALLBACK MELHORADO
-        const usuario = await verificarAutenticacao();
-        if (!usuario) {
-          console.log('❌ Usuário não autenticado');
-          mostrarErroAutenticacao();
-          return;
-        }
-        
-        console.log('✅ Usuário autenticado:', usuario.usuario);
-        usuarioLogado = usuario;
-        
-        // ✅ VERIFICAR SE ESTÁ EDITANDO UM QUIZ
-        const idEdit = getUrlParam('id');
-        if (idEdit !== null) {
-          console.log('🔧 Modo edição - ID:', idEdit);
-          await carregarQuizParaEdicao(idEdit);
-        } else {
-          console.log('📝 Modo criação - novo quiz');
-          // Modo criação normal - não precisa fazer nada especial
-        }
-        
-        console.log('✅ Painel inicializado com sucesso!');
-        
-      } catch (error) {
-        console.error('❌ Erro na inicialização:', error);
-        mostrarErroSistema(error.message);
-      }
-    };
+   window.excluirAlternativa = excluirAlternativa;
+   window.voltarParaDashboard = voltarParaDashboard;
 
-    // ============================================================================
-    // FUNÇÕES GLOBAIS
-    // ============================================================================
-
-    window.excluirAlternativa = excluirAlternativa;
-    window.voltarParaDashboard = voltarParaDashboard;
-
-    console.log('🎯 PAINEL QUIZ CORRIGIDO FINAL - Salvamento Local + Backend - Problema de Autenticação RESOLVIDO!');
-  </script>
+   console.log('🎯 PAINEL QUIZ CORRIGIDO FINAL - Integrado com auth.js!');
+ </script>
 </body>
 </html>
+          
