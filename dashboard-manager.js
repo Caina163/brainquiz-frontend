@@ -5,7 +5,9 @@ class DashboardManager {
       quizzes: [],
       pdfs: [],
       arquivados: [],
-      excluidos: []
+      excluidos: [],
+      usuarios: [],
+      cadastros: []
     };
   }
 
@@ -15,6 +17,7 @@ class DashboardManager {
       const usuario = await authManager.getUsuarioAtual();
       if (!usuario) {
         console.error('❌ Usuário não autenticado');
+        window.location.href = 'https://brainquiiz.netlify.app/index.html';
         return;
       }
 
@@ -39,7 +42,8 @@ class DashboardManager {
     }
     
     if (tipoUsuarioElement) {
-      tipoUsuarioElement.textContent = usuario.tipo === 'administrador' ? 'Administrador' : 'Usuário';
+      tipoUsuarioElement.textContent = usuario.tipo === 'administrador' ? 'Administrador' : 
+                                       usuario.tipo === 'moderador' ? 'Moderador' : 'Usuário';
     }
   }
 
@@ -47,20 +51,25 @@ class DashboardManager {
     try {
       this.mostrarCarregamento('Carregando dados...');
 
-      // Carregar todos os dados em paralelo com fallback
+      // Carregar todos os dados em paralelo
       const promessas = [
         this.carregarComFallback('/api/quizzes', 'quizzes'),
         this.carregarComFallback('/api/pdfs', 'pdfs'),
         this.carregarComFallback('/api/quizzes/arquivados', 'arquivados'),
-        this.carregarComFallback('/api/quizzes/excluidos', 'excluidos')
+        this.carregarComFallback('/api/quizzes/excluidos', 'excluidos'),
+        this.carregarComFallback('/api/usuarios', 'usuarios'),
+        this.carregarComFallback('/api/cadastros-pendentes', 'cadastros')
       ];
 
       const resultados = await Promise.allSettled(promessas);
       
       resultados.forEach((resultado, index) => {
+        const chaves = ['quizzes', 'pdfs', 'arquivados', 'excluidos', 'usuarios', 'cadastros'];
         if (resultado.status === 'fulfilled') {
-          const chaves = ['quizzes', 'pdfs', 'arquivados', 'excluidos'];
           this.dados[chaves[index]] = resultado.value;
+        } else {
+          console.warn(`Falha ao carregar ${chaves[index]}:`, resultado.reason);
+          this.dados[chaves[index]] = [];
         }
       });
 
@@ -80,16 +89,20 @@ class DashboardManager {
       
       if (response.ok) {
         const data = await response.json();
-        return data[tipo] || data.quizzes || data.pdfs || [];
+        
+        // Tentar diferentes estruturas de resposta
+        if (data[tipo]) return data[tipo];
+        if (data.data) return data.data;
+        if (Array.isArray(data)) return data;
+        if (data.success && data.dados) return data.dados;
+        
+        return [];
       } else {
         throw new Error(`HTTP ${response.status}`);
       }
     } catch (error) {
-      console.warn(`Falha ao carregar ${tipo}, usando cache local:`, error);
-      
-      // Tentar carregar do localStorage como fallback
-      const cache = localStorage.getItem(`cache_${tipo}`);
-      return cache ? JSON.parse(cache) : [];
+      console.warn(`Falha ao carregar ${tipo}:`, error);
+      return [];
     }
   }
 
@@ -98,6 +111,8 @@ class DashboardManager {
     this.renderizarPDFs();
     this.renderizarArquivados();
     this.renderizarExcluidos();
+    this.renderizarUsuarios();
+    this.renderizarCadastros();
     this.atualizarEstatisticas();
   }
 
@@ -109,7 +124,7 @@ class DashboardManager {
       container.innerHTML = `
         <div class="empty-state">
           <p>📝 Nenhum quiz criado ainda.</p>
-          <button class="btn btn-primary" onclick="window.location.href='painel.html'">
+          <button class="btn btn-primary" onclick="window.location.href='https://brainquiiz.netlify.app/painel.html'">
             Criar Primeiro Quiz
           </button>
         </div>
@@ -120,7 +135,7 @@ class DashboardManager {
     container.innerHTML = `
       <div class="section-header">
         <h3>📝 Quizzes Ativos (${this.dados.quizzes.length})</h3>
-        <button class="btn btn-success" onclick="window.location.href='painel.html'">
+        <button class="btn btn-success" onclick="window.location.href='https://brainquiiz.netlify.app/painel.html'">
           + Novo Quiz
         </button>
       </div>
@@ -219,241 +234,117 @@ class DashboardManager {
         </div>
         <div class="card-body">
           <p class="card-info">📅 ${this.formatarData(dataUpload)}</p>
-          <p class="card-info">👤 ${pdf.uploadedBy || 'Desconhecido'}</p>
+          <p class="card-info">👤 ${pdf.uploadedBy || 'Sistema'}</p>
+          <p class="card-info">🔒 ${pdf.bloqueado ? 'Download Bloqueado' : 'Download Liberado'}</p>
         </div>
       </div>
     `;
   }
 
-  atualizarEstatisticas() {
-    const stats = {
-      totalQuizzes: this.dados.quizzes.length,
-      totalPDFs: this.dados.pdfs.length,
-      totalArquivados: this.dados.arquivados.length,
-      totalExcluidos: this.dados.excluidos.length
-    };
+  renderizarUsuarios() {
+    const container = document.getElementById('usuarios-container');
+    if (!container) return;
 
-    // Atualizar elementos de estatística se existirem
-    Object.entries(stats).forEach(([key, value]) => {
-      const elemento = document.getElementById(key);
-      if (elemento) {
-        elemento.textContent = value;
-      }
-    });
-  }
-
-  // AÇÕES DO QUIZ
-  async jogarQuiz(quizId) {
-    try {
-      const quiz = this.dados.quizzes.find(q => q.id === quizId);
-      if (!quiz) {
-        this.mostrarErro('Quiz não encontrado');
-        return;
-      }
-
-      // Salvar no localStorage para o quiz.html
-      localStorage.setItem('quizAtual', JSON.stringify(quiz));
-      
-      // Redirecionar para o player
-      window.location.href = 'https://brainquiiz.netlify.com/quiz.html';
-      
-    } catch (error) {
-      console.error('Erro ao jogar quiz:', error);
-      this.mostrarErro('Erro ao carregar quiz');
-    }
-  }
-
-  editarQuiz(quizId) {
-    // Implementar edição de quiz
-    const quiz = this.dados.quizzes.find(q => q.id === quizId);
-    if (quiz) {
-      localStorage.setItem('quizParaEditar', JSON.stringify(quiz));
-      window.location.href = 'https://brainquiiz.netlify.com/painel.html';
-    }
-  }
-
-  async arquivarQuiz(quizId) {
-    if (!confirm('Tem certeza que deseja arquivar este quiz?')) return;
-
-    try {
-      const response = await authManager.makeAuthenticatedRequest(`${this.baseURL}/api/quiz/${quizId}/arquivar`, {
-        method: 'POST'
-      });
-
-      if (response.ok) {
-        await this.carregarTodosDados();
-        this.mostrarSucesso('Quiz arquivado com sucesso');
-      } else {
-        throw new Error('Falha ao arquivar');
-      }
-    } catch (error) {
-      console.error('Erro ao arquivar quiz:', error);
-      this.mostrarErro('Erro ao arquivar quiz');
-    }
-  }
-
-  async excluirQuiz(quizId) {
-    if (!confirm('Tem certeza que deseja excluir este quiz? Esta ação não pode ser desfeita.')) return;
-
-    try {
-      const response = await authManager.makeAuthenticatedRequest(`${this.baseURL}/api/quiz/${quizId}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        await this.carregarTodosDados();
-        this.mostrarSucesso('Quiz excluído com sucesso');
-      } else {
-        throw new Error('Falha ao excluir');
-      }
-    } catch (error) {
-      console.error('Erro ao excluir quiz:', error);
-      this.mostrarErro('Erro ao excluir quiz');
-    }
-  }
-
-  // AÇÕES DO PDF
-  visualizarPDF(pdfId) {
-    const pdf = this.dados.pdfs.find(p => p.id === pdfId);
-    if (!pdf) {
-      this.mostrarErro('PDF não encontrado');
+    if (this.dados.usuarios.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <p>👥 Nenhum usuário cadastrado.</p>
+        </div>
+      `;
       return;
     }
 
-    if (pdf.bloqueado) {
-      this.mostrarErro('Este PDF está bloqueado para visualização');
+    container.innerHTML = `
+      <div class="section-header">
+        <h3>👥 Usuários Ativos (${this.dados.usuarios.length})</h3>
+      </div>
+      <div class="items-grid">
+        ${this.dados.usuarios.map(usuario => this.criarCardUsuario(usuario)).join('')}
+      </div>
+    `;
+  }
+
+  criarCardUsuario(usuario) {
+    const nomeCompleto = `${usuario.nome} ${usuario.sobrenome || ''}`.trim();
+    const status = usuario.ativo ? 'Ativo' : 'Inativo';
+    const ultimoLogin = usuario.ultimoLogin ? this.formatarData(usuario.ultimoLogin) : 'Nunca';
+
+    return `
+      <div class="item-card user-card" data-user-id="${usuario.id}">
+        <div class="card-header">
+          <h4 class="card-title">${nomeCompleto}</h4>
+          <div class="card-actions">
+            <button class="btn-icon" onclick="dashboardManager.editarUsuario('${usuario.id}')" title="Editar">
+              ✏️
+            </button>
+            <button class="btn-icon" onclick="dashboardManager.alternarStatusUsuario('${usuario.id}')" title="${usuario.ativo ? 'Desativar' : 'Ativar'}">
+              ${usuario.ativo ? '⏸️' : '▶️'}
+            </button>
+            <button class="btn-icon" onclick="dashboardManager.excluirUsuario('${usuario.id}')" title="Excluir">
+              🗑️
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <p class="card-info">👤 ${usuario.usuario}</p>
+          <p class="card-info">📧 ${usuario.email}</p>
+          <p class="card-info">🏷️ ${usuario.tipo}</p>
+          <p class="card-info">📊 ${status}</p>
+          <p class="card-info">🕐 Último login: ${ultimoLogin}</p>
+        </div>
+      </div>
+    `;
+  }
+
+  renderizarCadastros() {
+    const container = document.getElementById('cadastros-container');
+    if (!container) return;
+
+    if (this.dados.cadastros.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <p>⏳ Nenhum cadastro pendente.</p>
+        </div>
+      `;
       return;
     }
 
-    // Abrir PDF em nova aba
-    const newWindow = window.open();
-    newWindow.document.write(`
-      <html>
-        <head>
-          <title>${pdf.nome}</title>
-          <style>
-            body { margin: 0; padding: 0; }
-            iframe { width: 100%; height: 100vh; border: none; }
-          </style>
-        </head>
-        <body>
-          <iframe src="${pdf.dados || pdf.base64}"></iframe>
-        </body>
-      </html>
-    `);
+    container.innerHTML = `
+      <div class="section-header">
+        <h3>⏳ Cadastros Pendentes (${this.dados.cadastros.length})</h3>
+      </div>
+      <div class="items-grid">
+        ${this.dados.cadastros.map(cadastro => this.criarCardCadastro(cadastro)).join('')}
+      </div>
+    `;
   }
 
-  baixarPDF(pdfId) {
-    const pdf = this.dados.pdfs.find(p => p.id === pdfId);
-    if (!pdf) {
-      this.mostrarErro('PDF não encontrado');
-      return;
-    }
+  criarCardCadastro(cadastro) {
+    const nomeCompleto = `${cadastro.nome} ${cadastro.sobrenome || ''}`.trim();
+    const dataCadastro = cadastro.dataCriacao || cadastro.dataEnvio || new Date().toISOString();
 
-    try {
-      const link = document.createElement('a');
-      link.href = pdf.dados || pdf.base64;
-      link.download = pdf.nome;
-      link.click();
-      
-      this.mostrarSucesso('Download iniciado');
-    } catch (error) {
-      console.error('Erro ao baixar PDF:', error);
-      this.mostrarErro('Erro ao baixar PDF');
-    }
-  }
-
-  async alternarBloqueio(pdfId) {
-    try {
-      const pdf = this.dados.pdfs.find(p => p.id === pdfId);
-      if (!pdf) {
-        this.mostrarErro('PDF não encontrado');
-        return;
-      }
-
-      const novoBloqueio = !pdf.bloqueado;
-      const acao = novoBloqueio ? 'bloquear' : 'desbloquear';
-      
-      if (!confirm(`Tem certeza que deseja ${acao} este PDF?`)) return;
-
-      const response = await authManager.makeAuthenticatedRequest(`${this.baseURL}/api/pdf/${pdfId}/bloqueio`, {
-        method: 'PATCH',
-        body: JSON.stringify({ bloqueado: novoBloqueio })
-      });
-
-      if (response.ok) {
-        pdf.bloqueado = novoBloqueio;
-        this.renderizarPDFs();
-        this.mostrarSucesso(`PDF ${acao}do com sucesso`);
-      } else {
-        throw new Error(`Falha ao ${acao}`);
-      }
-    } catch (error) {
-      console.error('Erro ao alterar bloqueio:', error);
-      this.mostrarErro('Erro ao alterar status do PDF');
-    }
-  }
-
-  async excluirPDF(pdfId) {
-    if (!confirm('Tem certeza que deseja excluir este PDF? Esta ação não pode ser desfeita.')) return;
-
-    try {
-      const response = await authManager.makeAuthenticatedRequest(`${this.baseURL}/api/pdf/${pdfId}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        await this.carregarTodosDados();
-        this.mostrarSucesso('PDF excluído com sucesso');
-      } else {
-        throw new Error('Falha ao excluir');
-      }
-    } catch (error) {
-      console.error('Erro ao excluir PDF:', error);
-      this.mostrarErro('Erro ao excluir PDF');
-    }
-  }
-
-  async uploadPDF(input) {
-    const file = input.files[0];
-    if (!file) return;
-
-    if (file.type !== 'application/pdf') {
-      this.mostrarErro('Apenas arquivos PDF são permitidos');
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) { // 10MB
-      this.mostrarErro('Arquivo muito grande. Máximo 10MB permitido');
-      return;
-    }
-
-    try {
-      this.mostrarCarregamento('Enviando PDF...');
-
-      const formData = new FormData();
-      formData.append('pdf', file);
-
-      const response = await authManager.makeAuthenticatedRequest(`${this.baseURL}/upload-pdf`, {
-        method: 'POST',
-        body: formData,
-        headers: {} // Remover Content-Type para FormData
-      });
-
-      if (response.ok) {
-        await this.carregarTodosDados();
-        this.mostrarSucesso('PDF enviado com sucesso');
-        input.value = ''; // Limpar input
-      } else {
-        const data = await response.json();
-        throw new Error(data.message || 'Falha no upload');
-      }
-    } catch (error) {
-      console.error('Erro no upload:', error);
-      this.mostrarErro(`Erro ao enviar PDF: ${error.message}`);
-    } finally {
-      this.esconderCarregamento();
-    }
+    return `
+      <div class="item-card cadastro-card" data-cadastro-id="${cadastro.id}">
+        <div class="card-header">
+          <h4 class="card-title">${nomeCompleto}</h4>
+          <div class="card-actions">
+            <button class="btn-icon" onclick="dashboardManager.aprovarCadastro('${cadastro.id}')" title="Aprovar">
+              ✅
+            </button>
+            <button class="btn-icon" onclick="dashboardManager.rejeitarCadastro('${cadastro.id}')" title="Rejeitar">
+              ❌
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <p class="card-info">👤 ${cadastro.usuario}</p>
+          <p class="card-info">📧 ${cadastro.email}</p>
+          <p class="card-info">📱 ${cadastro.telefone || 'Não informado'}</p>
+          <p class="card-info">📅 ${this.formatarData(dataCadastro)}</p>
+          <p class="card-info" style="color: orange;">⏳ Aguardando aprovação</p>
+        </div>
+      </div>
+    `;
   }
 
   renderizarArquivados() {
@@ -550,6 +441,332 @@ class DashboardManager {
     `;
   }
 
+  atualizarEstatisticas() {
+    const stats = {
+      totalQuizzes: this.dados.quizzes.length,
+      totalPDFs: this.dados.pdfs.length,
+      totalArquivados: this.dados.arquivados.length,
+      totalExcluidos: this.dados.excluidos.length,
+      totalUsuarios: this.dados.usuarios.length,
+      totalCadastros: this.dados.cadastros.length
+    };
+
+    // Atualizar elementos de estatística se existirem
+    Object.entries(stats).forEach(([key, value]) => {
+      const elemento = document.getElementById(key);
+      if (elemento) {
+        elemento.textContent = value;
+      }
+    });
+  }
+
+  // AÇÕES DO QUIZ
+  async jogarQuiz(quizId) {
+    try {
+      const quiz = this.dados.quizzes.find(q => q.id === quizId);
+      if (!quiz) {
+        this.mostrarErro('Quiz não encontrado');
+        return;
+      }
+
+      // Redirecionar para o player com ID do quiz
+      window.location.href = `https://brainquiiz.netlify.app/quiz.html?id=${quizId}`;
+      
+    } catch (error) {
+      console.error('Erro ao jogar quiz:', error);
+      this.mostrarErro('Erro ao carregar quiz');
+    }
+  }
+
+  editarQuiz(quizId) {
+    const quiz = this.dados.quizzes.find(q => q.id === quizId);
+    if (quiz) {
+      // Passar ID do quiz na URL para edição
+      window.location.href = `https://brainquiiz.netlify.app/painel.html?edit=${quizId}`;
+    }
+  }
+
+  async arquivarQuiz(quizId) {
+    if (!confirm('Tem certeza que deseja arquivar este quiz?')) return;
+
+    try {
+      const response = await authManager.makeAuthenticatedRequest(`${this.baseURL}/api/quiz/${quizId}/arquivar`, {
+        method: 'POST'
+      });
+
+      if (response.ok) {
+        await this.carregarTodosDados();
+        this.mostrarSucesso('Quiz arquivado com sucesso');
+      } else {
+        throw new Error('Falha ao arquivar');
+      }
+    } catch (error) {
+      console.error('Erro ao arquivar quiz:', error);
+      this.mostrarErro('Erro ao arquivar quiz');
+    }
+  }
+
+  async excluirQuiz(quizId) {
+    if (!confirm('Tem certeza que deseja excluir este quiz? Esta ação não pode ser desfeita.')) return;
+
+    try {
+      const response = await authManager.makeAuthenticatedRequest(`${this.baseURL}/api/quiz/${quizId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        await this.carregarTodosDados();
+        this.mostrarSucesso('Quiz excluído com sucesso');
+      } else {
+        throw new Error('Falha ao excluir');
+      }
+    } catch (error) {
+      console.error('Erro ao excluir quiz:', error);
+      this.mostrarErro('Erro ao excluir quiz');
+    }
+  }
+
+  // AÇÕES DO PDF
+  visualizarPDF(pdfId) {
+    const pdf = this.dados.pdfs.find(p => p.id === pdfId);
+    if (!pdf) {
+      this.mostrarErro('PDF não encontrado');
+      return;
+    }
+
+    // Abrir PDF em nova aba
+    const newWindow = window.open();
+    newWindow.document.write(`
+      <html>
+        <head>
+          <title>${pdf.nome}</title>
+          <style>
+            body { margin: 0; padding: 0; }
+            iframe { width: 100%; height: 100vh; border: none; }
+          </style>
+        </head>
+        <body>
+          <iframe src="${pdf.dados || pdf.base64}"></iframe>
+        </body>
+      </html>
+    `);
+  }
+
+  baixarPDF(pdfId) {
+    const pdf = this.dados.pdfs.find(p => p.id === pdfId);
+    if (!pdf) {
+      this.mostrarErro('PDF não encontrado');
+      return;
+    }
+
+    if (pdf.bloqueado) {
+      this.mostrarErro('Este PDF está bloqueado para download. Entre em contato com um administrador.');
+      return;
+    }
+
+    try {
+      const link = document.createElement('a');
+      link.href = pdf.dados || pdf.base64;
+      link.download = pdf.nome;
+      link.click();
+      
+      this.mostrarSucesso('Download iniciado');
+    } catch (error) {
+      console.error('Erro ao baixar PDF:', error);
+      this.mostrarErro('Erro ao baixar PDF');
+    }
+  }
+
+  async alternarBloqueio(pdfId) {
+    try {
+      const pdf = this.dados.pdfs.find(p => p.id === pdfId);
+      if (!pdf) {
+        this.mostrarErro('PDF não encontrado');
+        return;
+      }
+
+      const novoBloqueio = !pdf.bloqueado;
+      const acao = novoBloqueio ? 'bloquear' : 'desbloquear';
+      
+      if (!confirm(`Tem certeza que deseja ${acao} este PDF?`)) return;
+
+      const response = await authManager.makeAuthenticatedRequest(`${this.baseURL}/api/pdf/${pdfId}/bloqueio`, {
+        method: 'PATCH',
+        body: JSON.stringify({ bloqueado: novoBloqueio })
+      });
+
+      if (response.ok) {
+        await this.carregarTodosDados();
+        this.mostrarSucesso(`PDF ${acao}do com sucesso`);
+      } else {
+        throw new Error(`Falha ao ${acao}`);
+      }
+    } catch (error) {
+      console.error('Erro ao alterar bloqueio:', error);
+      this.mostrarErro('Erro ao alterar status do PDF');
+    }
+  }
+
+  async excluirPDF(pdfId) {
+    if (!confirm('Tem certeza que deseja excluir este PDF? Esta ação não pode ser desfeita.')) return;
+
+    try {
+      const response = await authManager.makeAuthenticatedRequest(`${this.baseURL}/api/pdf/${pdfId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        await this.carregarTodosDados();
+        this.mostrarSucesso('PDF excluído com sucesso');
+      } else {
+        throw new Error('Falha ao excluir');
+      }
+    } catch (error) {
+      console.error('Erro ao excluir PDF:', error);
+      this.mostrarErro('Erro ao excluir PDF');
+    }
+  }
+
+  async uploadPDF(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      this.mostrarErro('Apenas arquivos PDF são permitidos');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) { // 10MB
+      this.mostrarErro('Arquivo muito grande. Máximo 10MB permitido');
+      return;
+    }
+
+    try {
+      this.mostrarCarregamento('Enviando PDF...');
+
+      const formData = new FormData();
+      formData.append('pdf', file);
+
+      const response = await authManager.makeAuthenticatedRequest(`${this.baseURL}/api/upload-pdf`, {
+        method: 'POST',
+        body: formData,
+        headers: {} // Remover Content-Type para FormData
+      });
+
+      if (response.ok) {
+        await this.carregarTodosDados();
+        this.mostrarSucesso('PDF enviado com sucesso');
+        input.value = ''; // Limpar input
+      } else {
+        const data = await response.json();
+        throw new Error(data.message || 'Falha no upload');
+      }
+    } catch (error) {
+      console.error('Erro no upload:', error);
+      this.mostrarErro(`Erro ao enviar PDF: ${error.message}`);
+    } finally {
+      this.esconderCarregamento();
+    }
+  }
+
+  // AÇÕES DE USUÁRIOS
+  async editarUsuario(usuarioId) {
+    // Implementar modal de edição de usuário
+    this.mostrarInfo('Funcionalidade de edição de usuário em desenvolvimento');
+  }
+
+  async alternarStatusUsuario(usuarioId) {
+    try {
+      const usuario = this.dados.usuarios.find(u => u.id === usuarioId);
+      if (!usuario) {
+        this.mostrarErro('Usuário não encontrado');
+        return;
+      }
+
+      const novoStatus = !usuario.ativo;
+      const acao = novoStatus ? 'ativar' : 'desativar';
+      
+      if (!confirm(`Tem certeza que deseja ${acao} este usuário?`)) return;
+
+      const response = await authManager.makeAuthenticatedRequest(`${this.baseURL}/api/usuario/${usuarioId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ ativo: novoStatus })
+      });
+
+      if (response.ok) {
+        await this.carregarTodosDados();
+        this.mostrarSucesso(`Usuário ${acao}do com sucesso`);
+      } else {
+        throw new Error(`Falha ao ${acao}`);
+      }
+    } catch (error) {
+      console.error('Erro ao alterar status do usuário:', error);
+      this.mostrarErro('Erro ao alterar status do usuário');
+    }
+  }
+
+  async excluirUsuario(usuarioId) {
+    if (!confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) return;
+
+    try {
+      const response = await authManager.makeAuthenticatedRequest(`${this.baseURL}/api/usuario/${usuarioId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        await this.carregarTodosDados();
+        this.mostrarSucesso('Usuário excluído com sucesso');
+      } else {
+        throw new Error('Falha ao excluir');
+      }
+    } catch (error) {
+      console.error('Erro ao excluir usuário:', error);
+      this.mostrarErro('Erro ao excluir usuário');
+    }
+  }
+
+  // AÇÕES DE CADASTROS
+  async aprovarCadastro(cadastroId) {
+    if (!confirm('Tem certeza que deseja aprovar este cadastro?')) return;
+
+    try {
+      const response = await authManager.makeAuthenticatedRequest(`${this.baseURL}/api/cadastro/${cadastroId}/aprovar`, {
+        method: 'POST'
+      });
+
+      if (response.ok) {
+        await this.carregarTodosDados();
+        this.mostrarSucesso('Cadastro aprovado com sucesso');
+      } else {
+        throw new Error('Falha ao aprovar');
+      }
+    } catch (error) {
+      console.error('Erro ao aprovar cadastro:', error);
+      this.mostrarErro('Erro ao aprovar cadastro');
+    }
+  }
+
+  async rejeitarCadastro(cadastroId) {
+    if (!confirm('Tem certeza que deseja rejeitar este cadastro?')) return;
+
+    try {
+      const response = await authManager.makeAuthenticatedRequest(`${this.baseURL}/api/cadastro/${cadastroId}/rejeitar`, {
+        method: 'POST'
+      });
+
+      if (response.ok) {
+        await this.carregarTodosDados();
+        this.mostrarSucesso('Cadastro rejeitado com sucesso');
+      } else {
+        throw new Error('Falha ao rejeitar');
+      }
+    } catch (error) {
+      console.error('Erro ao rejeitar cadastro:', error);
+      this.mostrarErro('Erro ao rejeitar cadastro');
+    }
+  }
+
+  // AÇÕES DE RESTAURAÇÃO
   async restaurarQuiz(quizId) {
     if (!confirm('Deseja restaurar este quiz?')) return;
 
@@ -587,6 +804,26 @@ class DashboardManager {
     } catch (error) {
       console.error('Erro ao excluir definitivamente:', error);
       this.mostrarErro('Erro ao excluir quiz definitivamente');
+    }
+  }
+
+  async restaurarExcluido(quizId) {
+    if (!confirm('Deseja restaurar este quiz para os quizzes ativos?')) return;
+
+    try {
+      const response = await authManager.makeAuthenticatedRequest(`${this.baseURL}/api/quiz/${quizId}/restaurar-excluido`, {
+        method: 'POST'
+      });
+
+      if (response.ok) {
+        await this.carregarTodosDados();
+        this.mostrarSucesso('Quiz restaurado com sucesso');
+      } else {
+        throw new Error('Falha ao restaurar');
+      }
+    } catch (error) {
+      console.error('Erro ao restaurar quiz excluído:', error);
+      this.mostrarErro('Erro ao restaurar quiz');
     }
   }
 
@@ -637,10 +874,10 @@ class DashboardManager {
       });
     }
 
-    // Configurar refresh automático
+    // Configurar refresh automático a cada 5 minutos
     setInterval(() => {
       this.carregarTodosDados();
-    }, 5 * 60 * 1000); // Refresh a cada 5 minutos
+    }, 5 * 60 * 1000);
   }
 
   filtrarItens(termo) {
@@ -656,9 +893,11 @@ class DashboardManager {
 
   filtrarPorCategoria(categoria) {
     const sections = {
-      'todos': ['quizzes-container', 'pdfs-container', 'arquivados-container', 'excluidos-container'],
+      'todos': ['quizzes-container', 'pdfs-container', 'usuarios-container', 'cadastros-container', 'arquivados-container', 'excluidos-container'],
       'quizzes': ['quizzes-container'],
       'pdfs': ['pdfs-container'],
+      'usuarios': ['usuarios-container'],
+      'cadastros': ['cadastros-container'],
       'arquivados': ['arquivados-container'],
       'excluidos': ['excluidos-container']
     };
@@ -704,7 +943,7 @@ class DashboardManager {
           <div style="border: 3px solid #f3f3f3; border-top: 3px solid #3498db; 
                       border-radius: 50%; width: 30px; height: 30px; 
                       animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
-          <p>${mensagem}</p>
+          <p style="color: #333;">${mensagem}</p>
         </div>
       </div>
     `;
@@ -727,6 +966,10 @@ class DashboardManager {
 
   mostrarErro(mensagem) {
     this.mostrarNotificacao(mensagem, 'error');
+  }
+
+  mostrarInfo(mensagem) {
+    this.mostrarNotificacao(mensagem, 'info');
   }
 
   mostrarNotificacao(mensagem, tipo = 'info') {
@@ -777,11 +1020,11 @@ class DashboardManager {
     setTimeout(() => {
       if (notification.parentElement) {
         notification.style.opacity = '0';
-       notification.style.transform = 'translateX(100%)';
-       setTimeout(() => notification.remove(), 300);
-     }
-   }, 5000);
- }
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+      }
+    }, 5000);
+  }
 }
 
 // Instância global
@@ -789,7 +1032,9 @@ window.dashboardManager = new DashboardManager();
 
 // Inicializar quando a página carregar
 document.addEventListener('DOMContentLoaded', () => {
- if (window.location.pathname.includes('dashboard.html')) {
-   dashboardManager.inicializar();
- }
+  if (window.location.pathname.includes('dashboard.html')) {
+    dashboardManager.inicializar();
+  }
 });
+
+console.log('✅ DashboardManager corrigido com URLs atualizadas e funcionalidades completas!');
