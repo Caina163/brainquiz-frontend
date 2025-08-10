@@ -326,7 +326,7 @@
       <h3>⏳ Sistema de Aprovação:</h3>
       <p><strong>1.</strong> Seu cadastro será enviado para aprovação</p>
       <p><strong>2.</strong> Um administrador analisará seus dados</p>
-      <p><strong>3.</strong> Você receberá confirmação por email</p>
+      <p><strong>3.</strong> Em até 2 horas você será aprovado</p>
       <p><strong>4.</strong> Após aprovação, poderá fazer login</p>
     </div>
     
@@ -631,7 +631,7 @@ async function realizarCadastro(formData) {
       
       if (result.needsApproval) {
         // Sistema de aprovação
-        mostrarSucesso('✅ Cadastro enviado com sucesso! Seu cadastro foi enviado para análise. Aguarde a aprovação de um administrador para fazer login. Redirecionando para o login...');
+        mostrarSucesso('✅ Cadastro enviado com sucesso! Seu cadastro foi enviado para análise. Em até 2 horas você será aprovado automaticamente. Redirecionando para o login...');
       } else {
         // Compatibilidade: caso seja aprovação automática
         mostrarSucesso('✅ Cadastro realizado com sucesso! Você já pode fazer login. Redirecionando para a página de login...');
@@ -745,7 +745,7 @@ document.addEventListener('DOMContentLoaded', () => {
 console.log('🔧 Sistema de Cadastro CORRIGIDO - Backend Integrado');
 console.log('📡 Endpoint: https://brainquiz-backend.onrender.com/cadastro');
 console.log('🔄 Redirecionamento: https://brainquiiz.netlify.app/index.html');
-console.log('⏳ Cadastros serão enviados para APROVAÇÃO pelos administradores');
+console.log('⏳ Cadastros serão aprovados automaticamente em até 2 horas');
 
 </script>
 </body>
