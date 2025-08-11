@@ -125,69 +125,11 @@ class AuthManager {
   }
 
   tentarLoginLocal(usuario, senha) {
-    // Credenciais locais para fallback
-    const credenciaisLocais = [
-      {
-        usuario: 'admin',
-        senha: 'admin123',
-        dados: {
-          id: 1,
-          usuario: 'admin',
-          nome: 'Administrador',
-          sobrenome: 'Sistema',
-          email: 'admin@brainquiz.com',
-          tipo: 'administrador',
-          ativo: true
-        }
-      },
-      {
-        usuario: 'Castiel',
-        senha: 'castiel123',
-        dados: {
-          id: 'mdlayvain3xqsj',
-          usuario: 'Castiel',
-          nome: 'Davi',
-          sobrenome: '',
-          email: 'davi@brainquiz.com',
-          tipo: 'aluno',
-          ativo: true
-        }
-      },
-      {
-        usuario: 'moderador',
-        senha: 'mod123',
-        dados: {
-          id: 2,
-          usuario: 'moderador',
-          nome: 'Moderador',
-          sobrenome: 'Teste',
-          email: 'mod@brainquiz.com',
-          tipo: 'moderador',
-          ativo: true
-        }
-      }
-    ];
-
-    const credencial = credenciaisLocais.find(c => 
-      c.usuario.toLowerCase() === usuario.toLowerCase() && c.senha === senha
-    );
-
-    if (credencial) {
-      // Gerar token local
-      const tokenLocal = 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-      
-      // Salvar dados de autenticação
-      localStorage.setItem('authToken', tokenLocal);
-      localStorage.setItem('usuarioLogado', JSON.stringify(credencial.dados));
-      this.atualizarTimestamp();
-      
-      console.log('✅ Login realizado com credenciais locais');
-      return { success: true, usuario: credencial.dados };
-    }
-
+    // Sem credenciais locais - sempre falha
+    // Força o uso apenas de dados reais do backend
     return { 
       success: false, 
-      message: 'Usuário ou senha incorretos' 
+      message: 'Conexão com servidor necessária. Verifique sua internet.' 
     };
   }
 
