@@ -51,14 +51,14 @@ class DashboardManager {
     try {
       this.mostrarCarregamento('Carregando dados...');
 
-      // Carregar todos os dados em paralelo
+      // Carregar todos os dados em paralelo com fallbacks locais
       const promessas = [
-        this.carregarComFallback('/api/quizzes', 'quizzes'),
-        this.carregarComFallback('/api/pdfs', 'pdfs'),
-        this.carregarComFallback('/api/quizzes/arquivados', 'arquivados'),
-        this.carregarComFallback('/api/quizzes/excluidos', 'excluidos'),
-        this.carregarComFallback('/api/usuarios', 'usuarios'),
-        this.carregarComFallback('/api/cadastros-pendentes', 'cadastros')
+        this.carregarComFallback('/api/quizzes', 'quizzes', './data/quizzes.json'),
+        this.carregarComFallback('/api/pdfs', 'pdfs', './data/pdfs.json'),
+        this.carregarComFallback('/api/quizzes/arquivados', 'arquivados', './data/quizzes_arquivados.json'),
+        this.carregarComFallback('/api/quizzes/excluidos', 'excluidos', './data/quizzes_excluidos.json'),
+        this.carregarComFallback('/api/usuarios', 'usuarios', './data/usuarios.json'),
+        this.carregarComFallback('/api/cadastros-pendentes', 'cadastros', './data/cadastros.json')
       ];
 
       const resultados = await Promise.allSettled(promessas);
@@ -83,8 +83,9 @@ class DashboardManager {
     }
   }
 
-  async carregarComFallback(endpoint, tipo) {
+  async carregarComFallback(endpoint, tipo, fallbackLocal) {
     try {
+      // Tentar carregar do backend primeiro
       const response = await authManager.makeAuthenticatedRequest(`${this.baseURL}${endpoint}`);
       
       if (response.ok) {
@@ -96,12 +97,26 @@ class DashboardManager {
         if (Array.isArray(data)) return data;
         if (data.success && data.dados) return data.dados;
         
-        return [];
+        throw new Error('Estrutura de dados não reconhecida');
       } else {
         throw new Error(`HTTP ${response.status}`);
       }
     } catch (error) {
-      console.warn(`Falha ao carregar ${tipo}:`, error);
+      console.warn(`Falha no backend para ${tipo}, tentando arquivo local:`, error);
+      
+      try {
+        // Tentar carregar arquivo JSON local como fallback
+        const localResponse = await fetch(fallbackLocal);
+        if (localResponse.ok) {
+          const localData = await localResponse.json();
+          console.log(`✅ Dados ${tipo} carregados do arquivo local`);
+          return Array.isArray(localData) ? localData : [];
+        }
+      } catch (localError) {
+        console.warn(`Falha no arquivo local para ${tipo}:`, localError);
+      }
+      
+      // Se tudo falhar, retornar array vazio
       return [];
     }
   }
@@ -123,7 +138,9 @@ class DashboardManager {
     if (this.dados.quizzes.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
-          <p>📝 Nenhum quiz criado ainda.</p>
+          <div class="empty-icon">📝</div>
+          <h3>Nenhum quiz criado ainda</h3>
+          <p>Comece criando seu primeiro quiz!</p>
           <button class="btn btn-primary" onclick="window.location.href='https://brainquiiz.netlify.app/painel.html'">
             Criar Primeiro Quiz
           </button>
@@ -139,106 +156,81 @@ class DashboardManager {
           + Novo Quiz
         </button>
       </div>
-      <div class="items-grid">
-        ${this.dados.quizzes.map(quiz => this.criarCardQuiz(quiz)).join('')}
+      <div class="quiz-grid">
+        ${this.dados.quizzes.map(quiz => this.criarCardQuizAtivo(quiz)).join('')}
       </div>
     `;
   }
 
-  criarCardQuiz(quiz) {
+  criarCardQuizAtivo(quiz) {
     const titulo = quiz.titulo || quiz.nome || 'Quiz sem título';
     const perguntas = quiz.perguntas ? quiz.perguntas.length : 0;
     const dataModificacao = quiz.modificadoEm || quiz.criadoEm || new Date().toISOString();
 
     return `
-      <div class="item-card quiz-card" data-quiz-id="${quiz.id}">
-        <div class="card-header">
-          <h4 class="card-title">${titulo}</h4>
-          <div class="card-actions">
-            <button class="btn-icon" onclick="dashboardManager.jogarQuiz('${quiz.id}')" title="Jogar">
-              ▶️
-            </button>
-            <button class="btn-icon" onclick="dashboardManager.editarQuiz('${quiz.id}')" title="Editar">
-              ✏️
-            </button>
-            <button class="btn-icon" onclick="dashboardManager.arquivarQuiz('${quiz.id}')" title="Arquivar">
-              📦
-            </button>
-            <button class="btn-icon" onclick="dashboardManager.excluirQuiz('${quiz.id}')" title="Excluir">
-              🗑️
-            </button>
+      <div class="quiz-card-ativo" data-quiz-id="${quiz.id}" onclick="dashboardManager.jogarQuiz('${quiz.id}')">
+        <div class="quiz-thumbnail">
+          <div class="quiz-play-icon">▶️</div>
+          <div class="quiz-background"></div>
+        </div>
+        <div class="quiz-info">
+          <h4 class="quiz-title">${titulo}</h4>
+          <div class="quiz-meta">
+            <span class="quiz-questions">📊 ${perguntas} pergunta(s)</span>
+            <span class="quiz-date">📅 ${this.formatarDataSimples(dataModificacao)}</span>
           </div>
         </div>
-        <div class="card-body">
-          <p class="card-info">📊 ${perguntas} pergunta(s)</p>
-          <p class="card-info">📅 ${this.formatarData(dataModificacao)}</p>
-        </div>
-      </div>
-    `;
-  }
-
-  renderizarPDFs() {
-    const container = document.getElementById('pdfs-container');
-    if (!container) return;
-
-    if (this.dados.pdfs.length === 0) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <p>📄 Nenhum PDF carregado ainda.</p>
-          <input type="file" id="upload-pdf" accept=".pdf" style="display: none;" onchange="dashboardManager.uploadPDF(this)">
-          <button class="btn btn-primary" onclick="document.getElementById('upload-pdf').click()">
-            Carregar Primeiro PDF
+        <div class="quiz-actions" onclick="event.stopPropagation()">
+          <button class="quiz-action-btn" onclick="dashboardManager.mostrarMenuQuiz(event, '${quiz.id}')" title="Mais opções">
+            ⚙️
           </button>
         </div>
-      `;
-      return;
-    }
-
-    container.innerHTML = `
-      <div class="section-header">
-        <h3>📄 PDFs Disponíveis (${this.dados.pdfs.length})</h3>
-        <input type="file" id="upload-pdf" accept=".pdf" style="display: none;" onchange="dashboardManager.uploadPDF(this)">
-        <button class="btn btn-success" onclick="document.getElementById('upload-pdf').click()">
-          + Novo PDF
-        </button>
-      </div>
-      <div class="items-grid">
-        ${this.dados.pdfs.map(pdf => this.criarCardPDF(pdf)).join('')}
       </div>
     `;
   }
 
-  criarCardPDF(pdf) {
-    const nome = pdf.nome || 'PDF sem nome';
-    const dataUpload = pdf.dataUpload || pdf.uploadedAt || new Date().toISOString();
-    const bloqueado = pdf.bloqueado ? '🔒' : '🔓';
+  mostrarMenuQuiz(event, quizId) {
+    event.stopPropagation();
+    
+    // Remove menu existente se houver
+    const menuExistente = document.querySelector('.quiz-menu-dropdown');
+    if (menuExistente) {
+      menuExistente.remove();
+    }
 
-    return `
-      <div class="item-card pdf-card" data-pdf-id="${pdf.id}">
-        <div class="card-header">
-          <h4 class="card-title">${bloqueado} ${nome}</h4>
-          <div class="card-actions">
-            <button class="btn-icon" onclick="dashboardManager.visualizarPDF('${pdf.id}')" title="Visualizar">
-              👁️
-            </button>
-            <button class="btn-icon" onclick="dashboardManager.baixarPDF('${pdf.id}')" title="Baixar">
-              💾
-            </button>
-            <button class="btn-icon" onclick="dashboardManager.alternarBloqueio('${pdf.id}')" title="${pdf.bloqueado ? 'Desbloquear' : 'Bloquear'}">
-              ${pdf.bloqueado ? '🔓' : '🔒'}
-            </button>
-            <button class="btn-icon" onclick="dashboardManager.excluirPDF('${pdf.id}')" title="Excluir">
-              🗑️
-            </button>
-          </div>
-        </div>
-        <div class="card-body">
-          <p class="card-info">📅 ${this.formatarData(dataUpload)}</p>
-          <p class="card-info">👤 ${pdf.uploadedBy || 'Sistema'}</p>
-          <p class="card-info">🔒 ${pdf.bloqueado ? 'Download Bloqueado' : 'Download Liberado'}</p>
-        </div>
+    const menu = document.createElement('div');
+    menu.className = 'quiz-menu-dropdown';
+    menu.innerHTML = `
+      <div class="menu-item" onclick="dashboardManager.jogarQuiz('${quizId}')">
+        ▶️ Jogar Quiz
+      </div>
+      <div class="menu-item" onclick="dashboardManager.editarQuiz('${quizId}')">
+        ✏️ Editar
+      </div>
+      <div class="menu-item" onclick="dashboardManager.arquivarQuiz('${quizId}')">
+        📦 Arquivar
+      </div>
+      <div class="menu-item danger" onclick="dashboardManager.excluirQuiz('${quizId}')">
+        🗑️ Excluir
       </div>
     `;
+
+    // Posicionar menu
+    const rect = event.target.getBoundingClientRect();
+    menu.style.position = 'fixed';
+    menu.style.top = `${rect.bottom + 5}px`;
+    menu.style.left = `${rect.left - 120}px`;
+    menu.style.zIndex = '1000';
+
+    document.body.appendChild(menu);
+
+    // Fechar menu ao clicar fora
+    setTimeout(() => {
+      document.addEventListener('click', function fecharMenu() {
+        menu.remove();
+        document.removeEventListener('click', fecharMenu);
+      });
+    }, 10);
   }
 
   renderizarUsuarios() {
@@ -248,7 +240,8 @@ class DashboardManager {
     if (this.dados.usuarios.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
-          <p>👥 Nenhum usuário cadastrado.</p>
+          <div class="empty-icon">👥</div>
+          <h3>Nenhum usuário cadastrado</h3>
         </div>
       `;
       return;
@@ -256,41 +249,46 @@ class DashboardManager {
 
     container.innerHTML = `
       <div class="section-header">
-        <h3>👥 Usuários Ativos (${this.dados.usuarios.length})</h3>
+        <h3>👥 Gerenciar Usuários</h3>
       </div>
-      <div class="items-grid">
-        ${this.dados.usuarios.map(usuario => this.criarCardUsuario(usuario)).join('')}
+      <div class="usuarios-grid">
+        ${this.dados.usuarios.map(usuario => this.criarCardUsuarioGerencial(usuario)).join('')}
       </div>
     `;
   }
 
-  criarCardUsuario(usuario) {
+  criarCardUsuarioGerencial(usuario) {
     const nomeCompleto = `${usuario.nome} ${usuario.sobrenome || ''}`.trim();
-    const status = usuario.ativo ? 'Ativo' : 'Inativo';
-    const ultimoLogin = usuario.ultimoLogin ? this.formatarData(usuario.ultimoLogin) : 'Nunca';
-
+    const tipoIcon = usuario.tipo === 'administrador' ? 'A' : 
+                    usuario.tipo === 'moderador' ? 'M' : 'A';
+    const tipoLabel = usuario.tipo === 'administrador' ? 'Admin Sistema' : 
+                     usuario.tipo === 'moderador' ? 'Moderador Teste' : 'Aluno Exemplo';
+    const status = usuario.ativo !== false ? '🟢' : '🔴';
+    
     return `
-      <div class="item-card user-card" data-user-id="${usuario.id}">
-        <div class="card-header">
-          <h4 class="card-title">${nomeCompleto}</h4>
-          <div class="card-actions">
-            <button class="btn-icon" onclick="dashboardManager.editarUsuario('${usuario.id}')" title="Editar">
-              ✏️
-            </button>
-            <button class="btn-icon" onclick="dashboardManager.alternarStatusUsuario('${usuario.id}')" title="${usuario.ativo ? 'Desativar' : 'Ativar'}">
-              ${usuario.ativo ? '⏸️' : '▶️'}
-            </button>
-            <button class="btn-icon" onclick="dashboardManager.excluirUsuario('${usuario.id}')" title="Excluir">
-              🗑️
-            </button>
+      <div class="user-card-gerencial" data-user-id="${usuario.id}">
+        <div class="user-avatar-section">
+          <div class="user-avatar-circle ${usuario.tipo}">
+            ${tipoIcon}
           </div>
+          <div class="user-status-indicator">${status}</div>
         </div>
-        <div class="card-body">
-          <p class="card-info">👤 ${usuario.usuario}</p>
-          <p class="card-info">📧 ${usuario.email}</p>
-          <p class="card-info">🏷️ ${usuario.tipo}</p>
-          <p class="card-info">📊 ${status}</p>
-          <p class="card-info">🕐 Último login: ${ultimoLogin}</p>
+        <div class="user-info-section">
+          <h4 class="user-name">${nomeCompleto}</h4>
+          <p class="user-role">${tipoLabel}</p>
+          <p class="user-email">${usuario.email || usuario.usuario + '@brainquiz.com'}</p>
+          <p class="user-login">Último acesso: ${this.formatarDataSimples(usuario.ultimoLogin)}</p>
+        </div>
+        <div class="user-actions-section">
+          <button class="btn-user-action" onclick="dashboardManager.editarUsuario('${usuario.id}')" title="Editar">
+            ✏️
+          </button>
+          <button class="btn-user-action" onclick="dashboardManager.alternarStatusUsuario('${usuario.id}')" title="${usuario.ativo !== false ? 'Desativar' : 'Ativar'}">
+            ${usuario.ativo !== false ? '⏸️' : '▶️'}
+          </button>
+          <button class="btn-user-action danger" onclick="dashboardManager.excluirUsuario('${usuario.id}')" title="Excluir">
+            🗑️
+          </button>
         </div>
       </div>
     `;
@@ -303,7 +301,9 @@ class DashboardManager {
     if (this.dados.cadastros.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
-          <p>⏳ Nenhum cadastro pendente.</p>
+          <div class="empty-icon">⏳</div>
+          <h3>Nenhum cadastro pendente</h3>
+          <p>Todos os cadastros foram processados</p>
         </div>
       `;
       return;
@@ -313,35 +313,115 @@ class DashboardManager {
       <div class="section-header">
         <h3>⏳ Cadastros Pendentes (${this.dados.cadastros.length})</h3>
       </div>
-      <div class="items-grid">
-        ${this.dados.cadastros.map(cadastro => this.criarCardCadastro(cadastro)).join('')}
+      <div class="cadastros-grid">
+        ${this.dados.cadastros.map(cadastro => this.criarCardCadastroPendente(cadastro)).join('')}
       </div>
     `;
   }
 
-  criarCardCadastro(cadastro) {
+  criarCardCadastroPendente(cadastro) {
     const nomeCompleto = `${cadastro.nome} ${cadastro.sobrenome || ''}`.trim();
     const dataCadastro = cadastro.dataCriacao || cadastro.dataEnvio || new Date().toISOString();
 
     return `
-      <div class="item-card cadastro-card" data-cadastro-id="${cadastro.id}">
-        <div class="card-header">
-          <h4 class="card-title">${nomeCompleto}</h4>
-          <div class="card-actions">
-            <button class="btn-icon" onclick="dashboardManager.aprovarCadastro('${cadastro.id}')" title="Aprovar">
-              ✅
-            </button>
-            <button class="btn-icon" onclick="dashboardManager.rejeitarCadastro('${cadastro.id}')" title="Rejeitar">
-              ❌
-            </button>
+      <div class="cadastro-card-pendente" data-cadastro-id="${cadastro.id}">
+        <div class="cadastro-header">
+          <div class="cadastro-avatar">
+            👤
+          </div>
+          <div class="cadastro-info">
+            <h4 class="cadastro-nome">${nomeCompleto}</h4>
+            <p class="cadastro-usuario">@${cadastro.usuario}</p>
+          </div>
+          <div class="cadastro-status">
+            <span class="status-badge pendente">⏳ Pendente</span>
           </div>
         </div>
-        <div class="card-body">
-          <p class="card-info">👤 ${cadastro.usuario}</p>
-          <p class="card-info">📧 ${cadastro.email}</p>
-          <p class="card-info">📱 ${cadastro.telefone || 'Não informado'}</p>
-          <p class="card-info">📅 ${this.formatarData(dataCadastro)}</p>
-          <p class="card-info" style="color: orange;">⏳ Aguardando aprovação</p>
+        <div class="cadastro-detalhes">
+          <p><strong>📧 Email:</strong> ${cadastro.email}</p>
+          <p><strong>📱 Telefone:</strong> ${cadastro.telefone || 'Não informado'}</p>
+          <p><strong>📅 Solicitado em:</strong> ${this.formatarDataSimples(dataCadastro)}</p>
+        </div>
+        <div class="cadastro-actions">
+          <button class="btn btn-success" onclick="dashboardManager.aprovarCadastro('${cadastro.id}')">
+            ✅ Aprovar
+          </button>
+          <button class="btn btn-danger" onclick="dashboardManager.rejeitarCadastro('${cadastro.id}')">
+            ❌ Rejeitar
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  renderizarPDFs() {
+    const container = document.getElementById('pdfs-container');
+    if (!container) return;
+
+    if (this.dados.pdfs.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📄</div>
+          <h3>Nenhum PDF carregado ainda</h3>
+          <p>Adicione documentos PDF para seus usuários</p>
+          <input type="file" id="upload-pdf" accept=".pdf" style="display: none;" onchange="dashboardManager.uploadPDF(this)">
+          <button class="btn btn-primary" onclick="document.getElementById('upload-pdf').click()">
+            Carregar Primeiro PDF
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="section-header">
+        <h3>📄 Gerenciar PDFs</h3>
+        <input type="file" id="upload-pdf" accept=".pdf" style="display: none;" onchange="dashboardManager.uploadPDF(this)">
+        <button class="btn btn-success" onclick="document.getElementById('upload-pdf').click()">
+          + Novo PDF
+        </button>
+      </div>
+      <div class="pdfs-grid">
+        ${this.dados.pdfs.map(pdf => this.criarCardPDFGerencial(pdf)).join('')}
+      </div>
+    `;
+  }
+
+  criarCardPDFGerencial(pdf) {
+    const nome = pdf.nome || 'PDF sem nome';
+    const dataUpload = pdf.dataUpload || pdf.uploadedAt || new Date().toISOString();
+    const bloqueadoIcon = pdf.bloqueado ? '🔒' : '🔓';
+    const statusText = pdf.bloqueado ? 'PDF Bloqueado' : 'PDF Disponível';
+    const statusClass = pdf.bloqueado ? 'status-blocked' : 'status-available';
+
+    return `
+      <div class="pdf-card-gerencial" data-pdf-id="${pdf.id}">
+        <div class="pdf-header">
+          <div class="pdf-icon">📄</div>
+          <div class="pdf-info">
+            <h4 class="pdf-name">${nome}</h4>
+            <div class="pdf-status ${statusClass}">
+              ${bloqueadoIcon} ${statusText}
+            </div>
+          </div>
+        </div>
+        <div class="pdf-details">
+          <p><strong>📅 Upload:</strong> ${this.formatarDataSimples(dataUpload)}</p>
+          <p><strong>👤 Por:</strong> ${pdf.uploadedBy || 'Sistema'}</p>
+        </div>
+        <div class="pdf-actions">
+          <button class="btn-pdf-action" onclick="dashboardManager.visualizarPDF('${pdf.id}')" title="Visualizar">
+            👁️
+          </button>
+          <button class="btn-pdf-action" onclick="dashboardManager.baixarPDF('${pdf.id}')" title="Baixar">
+            💾
+          </button>
+          <button class="btn-pdf-action" onclick="dashboardManager.alternarBloqueio('${pdf.id}')" title="${pdf.bloqueado ? 'Desbloquear' : 'Bloquear'}">
+            ${pdf.bloqueado ? '🔓' : '🔒'}
+          </button>
+          <button class="btn-pdf-action danger" onclick="dashboardManager.excluirPDF('${pdf.id}')" title="Excluir">
+            🗑️
+          </button>
         </div>
       </div>
     `;
@@ -354,7 +434,9 @@ class DashboardManager {
     if (this.dados.arquivados.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
-          <p>📦 Nenhum quiz arquivado.</p>
+          <div class="empty-icon">📦</div>
+          <h3>Nenhum quiz arquivado</h3>
+          <p>Quizzes arquivados aparecerão aqui</p>
         </div>
       `;
       return;
@@ -382,13 +464,13 @@ class DashboardManager {
             <button class="btn-icon" onclick="dashboardManager.restaurarQuiz('${quiz.id}')" title="Restaurar">
               🔄
             </button>
-            <button class="btn-icon" onclick="dashboardManager.excluirDefinitivamente('${quiz.id}')" title="Excluir Definitivamente">
+            <button class="btn-icon danger" onclick="dashboardManager.excluirDefinitivamente('${quiz.id}')" title="Excluir Definitivamente">
               🗑️
             </button>
           </div>
         </div>
         <div class="card-body">
-          <p class="card-info">📅 Arquivado em ${this.formatarData(dataArquivamento)}</p>
+          <p class="card-info">📅 Arquivado em ${this.formatarDataSimples(dataArquivamento)}</p>
         </div>
       </div>
     `;
@@ -401,7 +483,9 @@ class DashboardManager {
     if (this.dados.excluidos.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
-          <p>🗑️ Lixeira vazia.</p>
+          <div class="empty-icon">🗑️</div>
+          <h3>Lixeira vazia</h3>
+          <p>Quizzes excluídos aparecerão aqui</p>
         </div>
       `;
       return;
@@ -435,7 +519,7 @@ class DashboardManager {
           </div>
         </div>
         <div class="card-body">
-          <p class="card-info">📅 Excluído em ${this.formatarData(dataExclusao)}</p>
+          <p class="card-info">📅 Excluído em ${this.formatarDataSimples(dataExclusao)}</p>
         </div>
       </div>
     `;
@@ -881,13 +965,15 @@ class DashboardManager {
   }
 
   filtrarItens(termo) {
-    const cards = document.querySelectorAll('.item-card');
+    const cards = document.querySelectorAll('.item-card, .quiz-card-ativo, .user-card-gerencial, .cadastro-card-pendente, .pdf-card-gerencial');
     termo = termo.toLowerCase();
 
     cards.forEach(card => {
-      const titulo = card.querySelector('.card-title').textContent.toLowerCase();
-      const matches = titulo.includes(termo);
-      card.style.display = matches ? 'block' : 'none';
+      const titulo = card.querySelector('.card-title, .quiz-title, .user-name, .cadastro-nome, .pdf-name');
+      if (titulo) {
+        const matches = titulo.textContent.toLowerCase().includes(termo);
+        card.style.display = matches ? 'block' : 'none';
+      }
     });
   }
 
@@ -932,6 +1018,19 @@ class DashboardManager {
     }
   }
 
+  formatarDataSimples(isoString) {
+    try {
+      const data = new Date(isoString);
+      return data.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    } catch (error) {
+      return 'Data inválida';
+    }
+  }
+
   mostrarCarregamento(mensagem = 'Carregando...') {
     const loader = document.getElementById('dashboard-loader') || document.createElement('div');
     loader.id = 'dashboard-loader';
@@ -939,13 +1038,19 @@ class DashboardManager {
       <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
                   background: rgba(0,0,0,0.3); display: flex; align-items: center; 
                   justify-content: center; z-index: 9999;">
-        <div style="background: white; padding: 20px; border-radius: 8px; text-align: center;">
+        <div style="background: white; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
           <div style="border: 3px solid #f3f3f3; border-top: 3px solid #3498db; 
                       border-radius: 50%; width: 30px; height: 30px; 
                       animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
-          <p style="color: #333;">${mensagem}</p>
+          <p style="color: #333; margin: 0;">${mensagem}</p>
         </div>
       </div>
+      <style>
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
     `;
     
     if (!document.getElementById('dashboard-loader')) {
@@ -1037,4 +1142,4 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-console.log('✅ DashboardManager corrigido com URLs atualizadas e funcionalidades completas!');
+console.log('✅ DashboardManager COMPLETO - APENAS DADOS REAIS!');
